@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="it">
 <head>
@@ -190,14 +189,14 @@ function computePair(high,low,bufPip,balance,riskPct,rr){
   if(!high||!low||high<=low)return null;
   const buf=bufPip/10000;
   const rangePip=r2((high-low)*10000);
-  const slPip=r2(rangePip/2);
+  const sl=r5((high+low)/2);
   const sellEntry=r5(low-buf);
-  const sellSL=r5(sellEntry+slPip/10000);
-  const sellTP=r5(sellEntry-(slPip*rr)/10000);
+  const sellSlPip=r2((sl-sellEntry)*10000);
+  const sellTP=r5(sellEntry-(sl-sellEntry)*rr);
   const buyEntry=r5(high+buf);
-  const buySL=r5(buyEntry-slPip/10000);
-  const buyTP=r5(buyEntry+(slPip*rr)/10000);
-  return{rangePip,slPip,sellEntry,sellSL,sellTP,buyEntry,buySL,buyTP};
+  const buySlPip=r2((buyEntry-sl)*10000);
+  const buyTP=r5(buyEntry+(buyEntry-sl)*rr);
+  return{rangePip,sl,sellEntry,sellSlPip,sellTP,buyEntry,buySlPip,buyTP};
 }
 
 function emptyOrders(){
@@ -206,20 +205,21 @@ function emptyOrders(){
 }
 
 function filledOrders(d,balance,risk,pipVal){
-  const size=r2((balance*(risk/100))/(d.slPip*pipVal));
+  const sellSize=r2((balance*(risk/100))/(d.sellSlPip*pipVal));
+  const buySize=r2((balance*(risk/100))/(d.buySlPip*pipVal));
   return`<div class="order-col">
     <div class="order-label-title sell-title">&#9660; SELL STOP</div>
     <div class="order-row"><span class="order-row-label">Entrata</span><span class="order-row-val val-entry mono">${fmt(d.sellEntry)}</span></div>
-    <div class="order-row"><span class="order-row-label">Stop Loss</span><span class="order-row-val val-sl mono">${fmt(d.sellSL)}</span></div>
+    <div class="order-row"><span class="order-row-label">Stop Loss</span><span class="order-row-val val-sl mono">${fmt(d.sl)}</span></div>
     <div class="order-row"><span class="order-row-label">Take Profit</span><span class="order-row-val val-tp mono">${fmt(d.sellTP)}</span></div>
-    <div class="order-row"><span class="order-row-label">Size (lotti)</span><span class="order-row-val val-size">${size}</span></div>
+    <div class="order-row"><span class="order-row-label">Size (lotti)</span><span class="order-row-val val-size">${sellSize}</span></div>
   </div>
   <div class="order-col">
     <div class="order-label-title buy-title">&#9650; BUY STOP</div>
     <div class="order-row"><span class="order-row-label">Entrata</span><span class="order-row-val val-entry mono">${fmt(d.buyEntry)}</span></div>
-    <div class="order-row"><span class="order-row-label">Stop Loss</span><span class="order-row-val val-sl mono">${fmt(d.buySL)}</span></div>
+    <div class="order-row"><span class="order-row-label">Stop Loss</span><span class="order-row-val val-sl mono">${fmt(d.sl)}</span></div>
     <div class="order-row"><span class="order-row-label">Take Profit</span><span class="order-row-val val-tp mono">${fmt(d.buyTP)}</span></div>
-    <div class="order-row"><span class="order-row-label">Size (lotti)</span><span class="order-row-val val-size">${size}</span></div>
+    <div class="order-row"><span class="order-row-label">Size (lotti)</span><span class="order-row-val val-size">${buySize}</span></div>
   </div>`;
 }
 
@@ -231,8 +231,8 @@ function update(){
   calc.gbp=computePair(parseFloat(document.getElementById("gbp-high").value),parseFloat(document.getElementById("gbp-low").value),8,balance,risk,rr);
   document.getElementById("eur-orders").innerHTML=calc.eur?filledOrders(calc.eur,balance,risk,10):emptyOrders();
   document.getElementById("gbp-orders").innerHTML=calc.gbp?filledOrders(calc.gbp,balance,risk,12.5):emptyOrders();
-  document.getElementById("eur-info").innerHTML=calc.eur?`Range: <span class="range-val">${calc.eur.rangePip} pip</span> &nbsp;&middot;&nbsp; SL: <span class="range-val">${calc.eur.slPip} pip</span>`:"&nbsp;";
-  document.getElementById("gbp-info").innerHTML=calc.gbp?`Range: <span class="range-val">${calc.gbp.rangePip} pip</span> &nbsp;&middot;&nbsp; SL: <span class="range-val">${calc.gbp.slPip} pip</span>`:"&nbsp;";
+  document.getElementById("eur-info").innerHTML=calc.eur?`Range: <span class="range-val">${calc.eur.rangePip} pip</span> &nbsp;&middot;&nbsp; SL: <span class="range-val">${fmt(calc.eur.sl)}</span>`:"&nbsp;";
+  document.getElementById("gbp-info").innerHTML=calc.gbp?`Range: <span class="range-val">${calc.gbp.rangePip} pip</span> &nbsp;&middot;&nbsp; SL: <span class="range-val">${fmt(calc.gbp.sl)}</span>`:"&nbsp;";
 }
 
 function saveTrade(){
@@ -250,11 +250,11 @@ function saveTrade(){
   if(eurDir&&!calc.eur){alert("Inserisci Prezzo High e Low per EUR/USD.");return}
   if(gbpDir&&!calc.gbp){alert("Inserisci Prezzo High e Low per GBP/USD.");return}
   function push(dir,d,coppia,high,low,pv){
-    const size=r2((balance*(risk/100))/(d.slPip*pv));
+    const slPip=dir==="sell"?d.sellSlPip:d.buySlPip;
+    const size=r2((balance*(risk/100))/(slPip*pv));
     const entry=dir==="sell"?d.sellEntry:d.buyEntry;
-    const sl=dir==="sell"?d.sellSL:d.buySL;
     const tp=dir==="sell"?d.sellTP:d.buyTP;
-    trades.push({date,coppia,direzione:dir,high,low,rangePip:d.rangePip,slPip:d.slPip,entrata:entry,sl,tp,size,saldo:balance,rischio:risk,rr});
+    trades.push({date,coppia,direzione:dir,high,low,rangePip:d.rangePip,slPip,entrata:entry,sl:d.sl,tp,size,saldo:balance,rischio:risk,rr});
   }
   if(eurDir&&calc.eur)push(eurDir,calc.eur,"EURUSD",eurH,eurL,10);
   if(gbpDir&&calc.gbp)push(gbpDir,calc.gbp,"GBPUSD",gbpH,gbpL,12.5);
