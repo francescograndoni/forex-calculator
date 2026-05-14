@@ -22,7 +22,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .main{max-width:960px;margin:0 auto;padding:1.5rem}
 
 /* ACCOUNT BAR — sfondo bianco normale, solo gli input sono gialli */
-.account-bar{background:var(--white);border:1px solid var(--border);border-radius:var(--radius);padding:1.25rem 1.5rem;margin-bottom:1.25rem;display:grid;grid-template-columns:1fr 1fr 1fr;gap:1.25rem}
+.account-bar{background:var(--white);border:1px solid var(--border);border-radius:var(--radius);padding:1.25rem 1.5rem;margin-bottom:1.25rem;display:grid;grid-template-columns:1fr 1fr 1fr 1fr 1fr;gap:1.25rem}
 .field{display:flex;flex-direction:column;gap:6px}
 .field label{font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.1em}
 
@@ -122,7 +122,9 @@ tr:hover td{background:var(--gray)}
   <div class="account-bar">
     <div class="field"><label>Saldo (€)</label><input class="inp-yellow" type="number" id="balance" value="3000" min="0" step="100"></div>
     <div class="field"><label>Rischio (%)</label><input class="inp-yellow" type="number" id="risk" value="0.5" min="0.1" max="5" step="0.1"></div>
+    <div class="field"><label>Tipo SL</label><select class="inp-yellow" id="sl-type"><option value="large">SL Intero</option><option value="slim">SL Slim</option></select></div>
     <div class="field"><label>RR Target</label><select class="inp-yellow" id="rr"><option value="1">1 : 1</option><option value="1.5" selected>1 : 1.5</option><option value="2">1 : 2</option></select></div>
+    <div class="field"><label>Perdita max (€)</label><input class="inp-yellow" type="text" id="max-loss" readonly style="background:#fff3cd;cursor:default;"></div>
   </div>
 
   <div class="pairs-grid">
@@ -130,7 +132,7 @@ tr:hover td{background:var(--gray)}
     <div class="pair-block">
       <div class="pair-header eur-header">
         <div class="pair-name">EUR/USD</div>
-        <div class="pair-sub"><span>Buffer 5 pip</span><span>SL = range / 2</span></div>
+        <div class="pair-sub"><span>Buffer 5 pips</span></div>
       </div>
       <div class="pair-inputs">
         <div class="field"><label>Prezzo High</label><input class="inp-yellow" type="number" id="eur-high" placeholder="es. 1.08450" step="0.00001"></div>
@@ -143,7 +145,7 @@ tr:hover td{background:var(--gray)}
     <div class="pair-block">
       <div class="pair-header gbp-header">
         <div class="pair-name">GBP/USD</div>
-        <div class="pair-sub"><span>Buffer 8 pip</span><span>SL = range / 2</span></div>
+        <div class="pair-sub"><span>Buffer 8 pips</span></div>
       </div>
       <div class="pair-inputs">
         <div class="field"><label>Prezzo High</label><input class="inp-yellow" type="number" id="gbp-high" placeholder="es. 1.26450" step="0.00001"></div>
@@ -166,6 +168,38 @@ tr:hover td{background:var(--gray)}
     </div>
   </div>
 
+  <!-- SEZIONE VERIFICA CALCOLI -->
+  <div style="margin-bottom:1.25rem">
+    <button onclick="document.getElementById('debug-section').style.display=document.getElementById('debug-section').style.display==='none'?'block':'none'" style="background:#6b6b6b;color:#fff;border:none;border-radius:6px;padding:8px 18px;font-size:12px;font-weight:700;cursor:pointer;margin-bottom:8px">🔍 Mostra/Nascondi verifica calcoli</button>
+    <div id="debug-section" style="display:none;background:#fff;border:1px solid #d8d8d6;border-radius:10px;overflow:hidden">
+      <div style="padding:.875rem 1.25rem;background:#f5f5f3;border-bottom:1px solid #d8d8d6;font-size:13px;font-weight:700">
+        Verifica calcoli in tempo reale — controllo: perdita reale ≤ perdita max
+      </div>
+      <div style="overflow-x:auto">
+        <table style="width:100%;border-collapse:collapse;font-size:11px">
+          <thead>
+            <tr style="background:#f5f5f3">
+              <th style="padding:6px 8px;text-align:left;border-bottom:1px solid #d8d8d6">Dir.</th>
+              <th style="padding:6px 8px;text-align:left;border-bottom:1px solid #d8d8d6">Entrata</th>
+              <th style="padding:6px 8px;text-align:left;border-bottom:1px solid #d8d8d6">SL prezzo</th>
+              <th style="padding:6px 8px;text-align:left;border-bottom:1px solid #d8d8d6">SL pips</th>
+              <th style="padding:6px 8px;text-align:left;border-bottom:1px solid #d8d8d6">Size</th>
+              <th style="padding:6px 8px;text-align:left;border-bottom:1px solid #d8d8d6">Rischio €</th>
+              <th style="padding:6px 8px;text-align:left;border-bottom:1px solid #d8d8d6">Perdita max €</th>
+              <th style="padding:6px 8px;text-align:left;border-bottom:1px solid #d8d8d6">Check</th>
+              <th style="padding:6px 8px;text-align:left;border-bottom:1px solid #d8d8d6">Guadagno €</th>
+              <th style="padding:6px 8px;text-align:left;border-bottom:1px solid #d8d8d6">Diff €</th>
+              <th style="padding:6px 8px;text-align:left;border-bottom:1px solid #d8d8d6">Verifica formula</th>
+            </tr>
+          </thead>
+          <tbody id="debug-body">
+            <tr><td colspan="11" style="padding:12px;color:#aaa;text-align:center">Inserisci i prezzi per vedere la verifica</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
   <div class="log-section">
     <div class="log-header">
       <span class="log-header-title">Trade salvati nella sessione</span>
@@ -182,57 +216,187 @@ let calc={eur:null,gbp:null};
 function r5(v){return Math.round(v*100000)/100000}
 function r2(v){return Math.round(v*100)/100}
 function fmt(v){return v.toFixed(5)}
+// Formattazione euro robusta: evita artefatti binari JS tipo 8.374999 -> 8.37 invece di 8.38.
+// Non modifica i calcoli, solo la visualizzazione/esportazione a 2 decimali.
+function eur(v){return (Math.round((Number(v)+1e-9)*100)/100).toFixed(2)}
 function today(){return new Date().toISOString().split("T")[0]}
 document.getElementById("trade-date").value=today();
 
-function computePair(high,low,bufPip,balance,riskPct,rr){
+// Spread fissi alle 9:00 (pips reali della piattaforma)
+const SPREAD={eur:0.00006, gbp:0.00009};
+
+function floorSize(v){return Math.floor(v*100)/100}
+
+function computePair(high,low,bufPip,balance,riskPct,rr,slType,spread){
   if(!high||!low||high<=low)return null;
   const buf=bufPip/10000;
-  const rangePip=r2((high-low)*10000);
-  const sl=r5((high+low)/2);
-  const sellEntry=r5(low-buf);
-  const sellSlPip=r2((sl-sellEntry)*10000);
-  const sellTP=r5(sellEntry-(sl-sellEntry)*rr);
-  const buyEntry=r5(high+buf);
-  const buySlPip=r2((buyEntry-sl)*10000);
-  const buyTP=r5(buyEntry+(buyEntry-sl)*rr);
-  return{rangePip,sl,sellEntry,sellSlPip,sellTP,buyEntry,buySlPip,buyTP};
+  const rangePip=(high-low)*10000; // NON arrotondato per calcoli interni
+
+  // Entry RAW: buffer solo qui. Nessun arrotondamento prima dei calcoli.
+  const sellEntryRaw=low-buf;
+  const buyEntryRaw=high+buf;
+
+  // SL RAW: solo range + spread, buffer NON incluso.
+  let sellSLRaw, buySLRaw;
+  if(slType==="large"){
+    sellSLRaw=high+spread;
+    buySLRaw=low-spread;
+  } else {
+    // slim: midpoint ± spread
+    const mid=(high+low)/2;
+    sellSLRaw=mid+spread;
+    buySLRaw=mid-spread;
+  }
+
+  // Distanza SL in pips: valori RAW, nessun arrotondamento intermedio.
+  const sellSlPip=(sellSLRaw-sellEntryRaw)*10000;
+  const buySlPip=(buyEntryRaw-buySLRaw)*10000;
+
+  // TP RAW proporzionale al SL × RR.
+  const sellTPRaw=sellEntryRaw-sellSlPip/10000*rr;
+  const buyTPRaw=buyEntryRaw+buySlPip/10000*rr;
+
+  // Arrotondamento a 5 decimali solo per visualizzazione/ordine, non per la catena di calcolo.
+  return{
+    rangePip:r2(rangePip),
+    sellEntry:r5(sellEntryRaw),sellSL:r5(sellSLRaw),sellSlPip,sellTP:r5(sellTPRaw),
+    buyEntry:r5(buyEntryRaw),buySL:r5(buySLRaw),buySlPip,buyTP:r5(buyTPRaw)
+  };
 }
 
 function emptyOrders(){
-  const rows=["Entrata","Stop Loss","Take Profit","Size (lotti)"].map(l=>`<div class="order-row"><span class="order-row-label">${l}</span><span class="order-row-val val-empty">—</span></div>`).join("");
+  const rows=["Entrata","Stop Loss","Take Profit","Size (lotti)","Guadagno (€)","Perdita reale (€)"].map(l=>`<div class="order-row"><span class="order-row-label">${l}</span><span class="order-row-val val-empty">—</span></div>`).join("");
   return`<div class="order-col"><div class="order-label-title sell-title">&#9660; SELL STOP</div>${rows}</div><div class="order-col"><div class="order-label-title buy-title">&#9650; BUY STOP</div>${rows}</div>`;
 }
 
-function filledOrders(d,balance,risk,pipVal){
-  const sellSize=r2((balance*(risk/100))/(d.sellSlPip*pipVal));
-  const buySize=r2((balance*(risk/100))/(d.buySlPip*pipVal));
+function filledOrders(d,balance,risk,pipVal,rr){
+  const maxLoss=balance*(risk/100);
+  // Size: arrotondamento per difetto SOLO qui
+  const sellSize=floorSize(maxLoss/(d.sellSlPip*pipVal));
+  const buySize=floorSize(maxLoss/(d.buySlPip*pipVal));
+  // Guadagno teorico = perdita max × RR (basato sulla size arrotondata)
+  const sellGain=r2(sellSize*d.sellSlPip*pipVal*rr);
+  const buyGain=r2(buySize*d.buySlPip*pipVal*rr);
+  const sellLoss=r2(sellSize*d.sellSlPip*pipVal);
+  const buyLoss=r2(buySize*d.buySlPip*pipVal);
   return`<div class="order-col">
     <div class="order-label-title sell-title">&#9660; SELL STOP</div>
     <div class="order-row"><span class="order-row-label">Entrata</span><span class="order-row-val val-entry mono">${fmt(d.sellEntry)}</span></div>
-    <div class="order-row"><span class="order-row-label">Stop Loss</span><span class="order-row-val val-sl mono">${fmt(d.sl)}</span></div>
+    <div class="order-row"><span class="order-row-label">Stop Loss</span><span class="order-row-val val-sl mono">${fmt(d.sellSL)}</span></div>
     <div class="order-row"><span class="order-row-label">Take Profit</span><span class="order-row-val val-tp mono">${fmt(d.sellTP)}</span></div>
     <div class="order-row"><span class="order-row-label">Size (lotti)</span><span class="order-row-val val-size">${sellSize}</span></div>
+    <div class="order-row"><span class="order-row-label">Guadagno (€)</span><span class="order-row-val val-tp" style="font-weight:800">€ ${eur(sellGain)}</span></div>
+    <div class="order-row"><span class="order-row-label">Perdita reale (€)</span><span class="order-row-val val-sl" style="font-weight:800">€ ${eur(sellLoss)}</span></div>
   </div>
   <div class="order-col">
     <div class="order-label-title buy-title">&#9650; BUY STOP</div>
     <div class="order-row"><span class="order-row-label">Entrata</span><span class="order-row-val val-entry mono">${fmt(d.buyEntry)}</span></div>
-    <div class="order-row"><span class="order-row-label">Stop Loss</span><span class="order-row-val val-sl mono">${fmt(d.sl)}</span></div>
+    <div class="order-row"><span class="order-row-label">Stop Loss</span><span class="order-row-val val-sl mono">${fmt(d.buySL)}</span></div>
     <div class="order-row"><span class="order-row-label">Take Profit</span><span class="order-row-val val-tp mono">${fmt(d.buyTP)}</span></div>
     <div class="order-row"><span class="order-row-label">Size (lotti)</span><span class="order-row-val val-size">${buySize}</span></div>
+    <div class="order-row"><span class="order-row-label">Guadagno (€)</span><span class="order-row-val val-tp" style="font-weight:800">€ ${eur(buyGain)}</span></div>
+    <div class="order-row"><span class="order-row-label">Perdita reale (€)</span><span class="order-row-val val-sl" style="font-weight:800">€ ${eur(buyLoss)}</span></div>
   </div>`;
+}
+
+function renderDebug(balance,risk,rr,slType){
+  const pairs=[
+    {id:"eur",label:"EUR/USD",buf:5,spread:SPREAD.eur,pipVal:10,
+     high:parseFloat(document.getElementById("eur-high").value),
+     low:parseFloat(document.getElementById("eur-low").value)},
+    {id:"gbp",label:"GBP/USD",buf:8,spread:SPREAD.gbp,pipVal:12.5,
+     high:parseFloat(document.getElementById("gbp-high").value),
+     low:parseFloat(document.getElementById("gbp-low").value)}
+  ];
+  const maxLoss=balance*(risk/100);
+  let html="";
+  pairs.forEach(p=>{
+    if(!p.high||!p.low||p.high<=p.low){html+=`<tr><td colspan="12" style="color:#aaa">${p.label}: dati non inseriti</td></tr>`;return;}
+    const buf=p.buf/10000;
+    const range=(p.high-p.low)*10000;
+    const sellEntryRaw=p.low-buf;
+    const buyEntryRaw=p.high+buf;
+    let sellSLRaw,buySLRaw;
+    if(slType==="large"){sellSLRaw=p.high+p.spread;buySLRaw=p.low-p.spread;}
+    else{const mid=(p.high+p.low)/2;sellSLRaw=mid+p.spread;buySLRaw=mid-p.spread;}
+    const sellSlPip=(sellSLRaw-sellEntryRaw)*10000;
+    const buySlPip=(buyEntryRaw-buySLRaw)*10000;
+    const sellEntry=r5(sellEntryRaw);
+    const buyEntry=r5(buyEntryRaw);
+    const sellSL=r5(sellSLRaw);
+    const buySL=r5(buySLRaw);
+    const sellSize=floorSize(maxLoss/(sellSlPip*p.pipVal));
+    const buySize=floorSize(maxLoss/(buySlPip*p.pipVal));
+    const sellRischio=r2(sellSize*sellSlPip*p.pipVal);
+    const buyRischio=r2(buySize*buySlPip*p.pipVal);
+    const sellOk=sellRischio<=maxLoss;
+    const buyOk=buyRischio<=maxLoss;
+    html+=`
+    <tr style="background:#f9f9f7">
+      <td colspan="12" style="font-weight:800;padding:10px 10px 4px">${p.label} — Range: ${r2(range)} pips | Spread usato: ${r2(p.spread*10000)} pips | Buffer: ${p.buf} pips | Tipo SL: ${slType==="large"?"Intero":"Slim"}</td>
+    </tr>
+    <tr>
+      <td>SELL</td>
+      <td class="mono">${fmt(sellEntry)}</td>
+      <td class="mono">${fmt(sellSL)}</td>
+      <td>${r2(sellSlPip)}</td>
+      <td>${sellSize}</td>
+      <td>€ ${eur(sellRischio)}</td>
+      <td>€ ${eur(maxLoss)}</td>
+      <td style="font-weight:800;color:${sellOk?"#3a7d2c":"#c0392b"}">${sellOk?"✅ OK":"❌ SUPERA MAX"}</td>
+      <td>€ ${eur(sellSize*sellSlPip*p.pipVal*rr)}</td>
+      <td>${eur(maxLoss-sellRischio)}</td>
+      <td>${r2(sellSlPip)} pips × ${sellSize} lotti × ${p.pipVal} = ${r2(sellSlPip*sellSize*p.pipVal)}</td>
+    </tr>
+    <tr>
+      <td>BUY</td>
+      <td class="mono">${fmt(buyEntry)}</td>
+      <td class="mono">${fmt(buySL)}</td>
+      <td>${r2(buySlPip)}</td>
+      <td>${buySize}</td>
+      <td>€ ${eur(buyRischio)}</td>
+      <td>€ ${eur(maxLoss)}</td>
+      <td style="font-weight:800;color:${buyOk?"#3a7d2c":"#c0392b"}">${buyOk?"✅ OK":"❌ SUPERA MAX"}</td>
+      <td>€ ${eur(buySize*buySlPip*p.pipVal*rr)}</td>
+      <td>${eur(maxLoss-buyRischio)}</td>
+      <td>${r2(buySlPip)} pips × ${buySize} lotti × ${p.pipVal} = ${r2(buySlPip*buySize*p.pipVal)}</td>
+    </tr>`;
+  });
+  document.getElementById("debug-body").innerHTML=html||"<tr><td colspan='12'>Nessun dato</td></tr>";
 }
 
 function update(){
   const balance=parseFloat(document.getElementById("balance").value)||0;
   const risk=parseFloat(document.getElementById("risk").value)||0.5;
   const rr=parseFloat(document.getElementById("rr").value)||1.5;
-  calc.eur=computePair(parseFloat(document.getElementById("eur-high").value),parseFloat(document.getElementById("eur-low").value),5,balance,risk,rr);
-  calc.gbp=computePair(parseFloat(document.getElementById("gbp-high").value),parseFloat(document.getElementById("gbp-low").value),8,balance,risk,rr);
-  document.getElementById("eur-orders").innerHTML=calc.eur?filledOrders(calc.eur,balance,risk,10):emptyOrders();
-  document.getElementById("gbp-orders").innerHTML=calc.gbp?filledOrders(calc.gbp,balance,risk,12.5):emptyOrders();
-  document.getElementById("eur-info").innerHTML=calc.eur?`Range: <span class="range-val">${calc.eur.rangePip} pip</span> &nbsp;&middot;&nbsp; SL: <span class="range-val">${fmt(calc.eur.sl)}</span>`:"&nbsp;";
-  document.getElementById("gbp-info").innerHTML=calc.gbp?`Range: <span class="range-val">${calc.gbp.rangePip} pip</span> &nbsp;&middot;&nbsp; SL: <span class="range-val">${fmt(calc.gbp.sl)}</span>`:"&nbsp;";
+  const slType=document.getElementById("sl-type").value;
+
+  // Perdita max
+  const maxLoss=r2(balance*(risk/100));
+  document.getElementById("max-loss").value="€ "+eur(maxLoss);
+
+  calc.eur=computePair(
+    parseFloat(document.getElementById("eur-high").value),
+    parseFloat(document.getElementById("eur-low").value),
+    5,balance,risk,rr,slType,SPREAD.eur
+  );
+  calc.gbp=computePair(
+    parseFloat(document.getElementById("gbp-high").value),
+    parseFloat(document.getElementById("gbp-low").value),
+    8,balance,risk,rr,slType,SPREAD.gbp
+  );
+
+  document.getElementById("eur-orders").innerHTML=calc.eur?filledOrders(calc.eur,balance,risk,10,rr):emptyOrders();
+  document.getElementById("gbp-orders").innerHTML=calc.gbp?filledOrders(calc.gbp,balance,risk,12.5,rr):emptyOrders();
+
+  document.getElementById("eur-info").innerHTML=calc.eur
+    ?`Range: <span class="range-val">${calc.eur.rangePip} pips</span>`
+    :"&nbsp;";
+  document.getElementById("gbp-info").innerHTML=calc.gbp
+    ?`Range: <span class="range-val">${calc.gbp.rangePip} pips</span>`
+    :"&nbsp;";
+
+  renderDebug(balance,risk,rr,slType);
 }
 
 function saveTrade(){
@@ -242,6 +406,7 @@ function saveTrade(){
   const balance=parseFloat(document.getElementById("balance").value)||0;
   const risk=parseFloat(document.getElementById("risk").value)||0.5;
   const rr=parseFloat(document.getElementById("rr").value)||1.5;
+  const slType=document.getElementById("sl-type").value;
   const eurH=parseFloat(document.getElementById("eur-high").value)||"";
   const eurL=parseFloat(document.getElementById("eur-low").value)||"";
   const gbpH=parseFloat(document.getElementById("gbp-high").value)||"";
@@ -251,10 +416,13 @@ function saveTrade(){
   if(gbpDir&&!calc.gbp){alert("Inserisci Prezzo High e Low per GBP/USD.");return}
   function push(dir,d,coppia,high,low,pv){
     const slPip=dir==="sell"?d.sellSlPip:d.buySlPip;
-    const size=r2((balance*(risk/100))/(slPip*pv));
+    const size=floorSize((balance*(risk/100))/(slPip*pv));
     const entry=dir==="sell"?d.sellEntry:d.buyEntry;
+    const slPrice=dir==="sell"?d.sellSL:d.buySL;
     const tp=dir==="sell"?d.sellTP:d.buyTP;
-    trades.push({date,coppia,direzione:dir,high,low,rangePip:d.rangePip,slPip,entrata:entry,sl:d.sl,tp,size,saldo:balance,rischio:risk,rr});
+    const guadagno=r2(size*slPip*pv*rr);
+    const perdita=r2(size*slPip*pv);
+    trades.push({date,coppia,direzione:dir,high,low,rangePip:d.rangePip,slPip,entrata:entry,sl:slPrice,tp,size,guadagno,perdita,saldo:balance,rischio:risk,rr,slType});
   }
   if(eurDir&&calc.eur)push(eurDir,calc.eur,"EURUSD",eurH,eurL,10);
   if(gbpDir&&calc.gbp)push(gbpDir,calc.gbp,"GBPUSD",gbpH,gbpL,12.5);
@@ -268,17 +436,20 @@ function renderLog(){
   const body=document.getElementById("log-body");
   if(!trades.length){body.innerHTML='<div class="log-empty">Nessun trade salvato.</div>';return}
   body.innerHTML=`<div class="log-table-wrap"><table>
-    <thead><tr><th>Data</th><th>Coppia</th><th>Dir.</th><th>High</th><th>Low</th><th>Range pip</th><th>SL pip</th><th>Entrata</th><th>Stop Loss</th><th>Take Profit</th><th>Size</th><th>Saldo</th><th>Rischio%</th><th>RR</th></tr></thead>
+    <thead><tr><th>Data</th><th>Coppia</th><th>Dir.</th><th>Tipo SL</th><th>High</th><th>Low</th><th>Range pips</th><th>SL pips</th><th>Entrata</th><th>Stop Loss</th><th>Take Profit</th><th>Size</th><th>Guadagno €</th><th>Perdita reale €</th><th>Saldo</th><th>Rischio%</th><th>RR</th></tr></thead>
     <tbody>${trades.map(t=>`<tr>
       <td>${t.date}</td>
       <td><span class="${t.coppia==="EURUSD"?"tag-eur":"tag-gbp"}">${t.coppia}</span></td>
       <td><span class="${t.direzione==="sell"?"tag-sell":"tag-buy"}">${t.direzione.toUpperCase()}</span></td>
+      <td>${t.slType==="large"?"Intero":"Slim"}</td>
       <td class="mono">${t.high}</td><td class="mono">${t.low}</td>
-      <td>${t.rangePip}</td><td>${t.slPip}</td>
+      <td>${t.rangePip}</td><td>${r2(t.slPip)}</td>
       <td class="mono val-entry">${fmt(t.entrata)}</td>
       <td class="mono val-sl">${fmt(t.sl)}</td>
       <td class="mono val-tp">${fmt(t.tp)}</td>
       <td class="val-size">${t.size}</td>
+      <td class="val-tp" style="font-weight:700">€ ${eur(t.guadagno)}</td>
+      <td class="val-sl" style="font-weight:700">€ ${eur(t.perdita)}</td>
       <td>${t.saldo}</td><td>${t.rischio}%</td><td>1:${t.rr}</td>
     </tr>`).join("")}</tbody>
   </table></div>`;
@@ -286,8 +457,8 @@ function renderLog(){
 
 function exportCSV(){
   if(!trades.length){alert("Nessun trade da esportare.");return}
-  const h=["Data","Coppia","Direzione","High","Low","Range(pip)","SL(pip)","Entrata","StopLoss","TakeProfit","Size(lotti)","Saldo","Rischio%","RR"];
-  const rows=trades.map(t=>[t.date,t.coppia,t.direzione,t.high,t.low,t.rangePip,t.slPip,fmt(t.entrata),fmt(t.sl),fmt(t.tp),t.size,t.saldo,t.rischio,"1:"+t.rr]);
+  const h=["Data","Coppia","Direzione","TipoSL","High","Low","Range(pips)","SL(pips)","Entrata","StopLoss","TakeProfit","Size(lotti)","Guadagno(€)","Perdita reale(€)","Saldo","Rischio%","RR"];
+  const rows=trades.map(t=>[t.date,t.coppia,t.direzione,t.slType,t.high,t.low,t.rangePip,r2(t.slPip),fmt(t.entrata),fmt(t.sl),fmt(t.tp),t.size,eur(t.guadagno),eur(t.perdita),t.saldo,t.rischio,"1:"+t.rr]);
   const csv=[h,...rows].map(r=>r.join(",")).join("\n");
   const blob=new Blob([csv],{type:"text/csv;charset=utf-8;"});
   const url=URL.createObjectURL(blob);
