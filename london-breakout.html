@@ -501,7 +501,7 @@ function renderLog(){
 function exportCSV(){
   if(!trades.length){alert("Nessun trade da esportare.");return}
   const h=["Data","Coppia","Direzione","TipoSL","High","Low","Range(pips)","SL ordine(pips)","SL rischio(pips)","Entrata","StopLoss","TakeProfit","Size(lotti)","Guadagno(€)","Perdita stimata(€)","Saldo","Rischio%","RR"];
-  const rows=trades.map(t=>[t.date,t.coppia,t.direzione,t.slType,t.high,t.low,t.rangePip,r2(t.slPip),r2(t.riskSlPip),fmt(t.entrata),fmt(t.sl),fmt(t.tp),t.size,eur(t.guadagno),eur(t.perdita),t.saldo,t.rischio,"1:"+t.rr]);
+  const rows=trades.map(t=>[t.date,t.coppia,t.direzione,t.slType,t.high,t.low,t.rangePip,r2(t.slPip),r2(t.riskSlPip),fmt(t.entrata),fmt(t.sl),fmt(t.tp),t.size,r2(t.guadagno),r2(t.perdita),t.saldo,t.rischio,"1:"+t.rr]);
   const csv=[h,...rows].map(r=>r.join(",")).join("\n");
   const blob=new Blob([csv],{type:"text/csv;charset=utf-8;"});
   const url=URL.createObjectURL(blob);
