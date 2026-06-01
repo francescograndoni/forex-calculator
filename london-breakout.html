@@ -174,6 +174,7 @@ tr:hover td{background:#2d2d3a}
       <div class="save-field"><label>GBP/USD direzione</label><select class="inp-yellow" id="gbp-dir"><option value="">— non tradato —</option><option value="buy">Buy</option><option value="sell">Sell</option></select></div>
       <div class="save-field"><label>&nbsp;</label><button class="btn btn-save" onclick="saveTrade()">+ Salva trade</button></div>
       <div class="save-field"><label>&nbsp;</label><button class="btn btn-export" onclick="exportCSV()">&#8595; Esporta CSV</button></div>
+      <div class="save-field"><label>&nbsp;</label><button class="btn btn-export" onclick="exportXLS()">&#8595; Esporta Excel</button></div>
     </div>
   </div>
 
@@ -220,8 +221,26 @@ tr:hover td{background:#2d2d3a}
 </div>
 
 <script>
-const trades=[];
+const STORAGE_KEY="lobs_forward_trades_v21";
+let trades=[];
+try{
+  trades=JSON.parse(localStorage.getItem(STORAGE_KEY)||"[]");
+}catch(e){
+  trades=[];
+}
 let calc={eur:null,gbp:null};
+
+function saveTrades(){
+  localStorage.setItem(STORAGE_KEY,JSON.stringify(trades));
+}
+
+function tradeKey(t){
+  return [t.date,t.coppia,t.direzione,t.slType,t.high,t.low,fmt(t.entrata),fmt(t.sl),fmt(t.tp)].join("|");
+}
+
+function isDuplicateTrade(t){
+  return trades.some(x=>tradeKey(x)===tradeKey(t));
+}
 function r5(v){return Math.round(v*100000)/100000}
 function r2(v){return Math.round(v*100)/100}
 function fmt(v){return v.toFixed(5)}
@@ -451,9 +470,13 @@ function saveTrade(){
   const eurL=parseFloat(document.getElementById("eur-low").value)||"";
   const gbpH=parseFloat(document.getElementById("gbp-high").value)||"";
   const gbpL=parseFloat(document.getElementById("gbp-low").value)||"";
+  let saved=0;
+  let skipped=0;
+
   if(!eurDir&&!gbpDir){alert("Seleziona almeno una direzione.");return}
   if(eurDir&&!calc.eur){alert("Inserisci Prezzo High e Low per EUR/USD.");return}
   if(gbpDir&&!calc.gbp){alert("Inserisci Prezzo High e Low per GBP/USD.");return}
+
   function push(dir,d,coppia,high,low,pv,spreadPip){
     const slPip=dir==="sell"?d.sellSlPip:d.buySlPip;
     const riskSlPip=dir==="sell"?d.sellRiskSlPip:d.buyRiskSlPip;
@@ -463,13 +486,31 @@ function saveTrade(){
     const tp=dir==="sell"?d.sellTP:d.buyTP;
     const guadagno=r2(size*slPip*pv*rr);
     const perdita=r2(size*riskSlPip*pv);
-    trades.push({date,coppia,direzione:dir,high,low,rangePip:d.rangePip,slPip,riskSlPip,entrata:entry,sl:slPrice,tp,size,guadagno,perdita,saldo:balance,rischio:risk,rr,slType});
+
+    const trade={date,coppia,direzione:dir,high,low,rangePip:d.rangePip,slPip,riskSlPip,entrata:entry,sl:slPrice,tp,size,guadagno,perdita,saldo:balance,rischio:risk,rr,slType};
+
+    if(isDuplicateTrade(trade)){
+      skipped++;
+      return;
+    }
+
+    trades.push(trade);
+    saved++;
   }
+
   const eurSpreadPip=parseFloat(document.getElementById("eur-spread").value)||0.6;
   const gbpSpreadPip=parseFloat(document.getElementById("gbp-spread").value)||0.9;
+
   if(eurDir&&calc.eur)push(eurDir,calc.eur,"EURUSD",eurH,eurL,getPipValueEUR(),eurSpreadPip);
   if(gbpDir&&calc.gbp)push(gbpDir,calc.gbp,"GBPUSD",gbpH,gbpL,getPipValueEUR(),gbpSpreadPip);
+
+  saveTrades();
   renderLog();
+
+  if(skipped>0){
+    alert("Attenzione: "+skipped+" trade duplicato/i non salvato/i.");
+  }
+
   document.getElementById("eur-dir").value="";
   document.getElementById("gbp-dir").value="";
 }
@@ -498,19 +539,67 @@ function renderLog(){
   </table></div>`;
 }
 function csv(v){return String(v).replace('.',',')}
+function csvCell(v){
+  return `"${String(v).replace(/"/g,'""')}"`;
+}
+function exportRows(){
+  const h=["Data","Coppia","Direzione","TipoSL","High","Low","Range pips","SL ordine pips","SL rischio pips","Entrata","StopLoss","TakeProfit","Size lotti","Guadagno EUR","Perdita stimata EUR","Saldo","Rischio %","RR"];
+  const rows=trades.map(t=>[
+    t.date,
+    t.coppia,
+    t.direzione,
+    t.slType==="large"?"Intero":"Slim",
+    csv(t.high),
+    csv(t.low),
+    csv(t.rangePip),
+    csv(r2(t.slPip)),
+    csv(r2(t.riskSlPip)),
+    csv(fmt(t.entrata)),
+    csv(fmt(t.sl)),
+    csv(fmt(t.tp)),
+    csv(t.size),
+    csv(r2(t.guadagno)),
+    csv(r2(t.perdita)),
+    csv(t.saldo),
+    csv(t.rischio),
+    "1:"+t.rr
+  ]);
+  return [h,...rows];
+}
 function exportCSV(){
   if(!trades.length){alert("Nessun trade da esportare.");return}
-  const h=["Data","Coppia","Direzione","TipoSL","High","Low","Range(pips)","SL ordine(pips)","SL rischio(pips)","Entrata","StopLoss","TakeProfit","Size(lotti)","Guadagno(€)","Perdita stimata(€)","Saldo","Rischio%","RR"];
-const rows=trades.map(t=>[t.date,t.coppia,t.direzione,t.slType,csv(t.high),csv(t.low),csv(t.rangePip),csv(r2(t.slPip)),csv(r2(t.riskSlPip)),csv(fmt(t.entrata)),csv(fmt(t.sl)),csv(fmt(t.tp)),t.size,csv(r2(t.guadagno)),csv(r2(t.perdita)),t.saldo,t.rischio,"1:"+t.rr]);  const csv=[h,...rows].map(r=>r.join(",")).join("\n");
-  const blob=new Blob([csv],{type:"text/csv;charset=utf-8;"});
+  const rows=exportRows();
+  const contenuto=rows.map(r=>r.map(csvCell).join(";")).join("\n");
+  const blob=new Blob(["\ufeff"+contenuto],{type:"text/csv;charset=utf-8;"});
   const url=URL.createObjectURL(blob);
   const a=document.createElement("a");
-  a.href=url;a.download="london_breakout_v20_"+today()+".csv";a.click();
+  a.href=url;
+  a.download="LOBS_forward_test_"+today()+".csv";
+  a.click();
+  URL.revokeObjectURL(url);
+}
+function htmlCell(v,tag){
+  return `<${tag}>${String(v).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")}</${tag}>`;
+}
+function exportXLS(){
+  if(!trades.length){alert("Nessun trade da esportare.");return}
+  const rows=exportRows();
+  const html=`<html><head><meta charset="UTF-8"></head><body><table border="1">
+    <thead><tr>${rows[0].map(v=>htmlCell(v,"th")).join("")}</tr></thead>
+    <tbody>${rows.slice(1).map(r=>`<tr>${r.map(v=>htmlCell(v,"td")).join("")}</tr>`).join("")}</tbody>
+  </table></body></html>`;
+  const blob=new Blob(["\ufeff"+html],{type:"application/vnd.ms-excel;charset=utf-8;"});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement("a");
+  a.href=url;
+  a.download="LOBS_forward_test_"+today()+".xls";
+  a.click();
   URL.revokeObjectURL(url);
 }
 
 document.querySelectorAll("input,select").forEach(el=>el.addEventListener("input",update));
 update();
+renderLog();
 </script>
 </body>
 </html>
