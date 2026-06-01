@@ -554,6 +554,32 @@ function renderLog(){
   </table></div>`;
 }
 function csv(v){return String(v).replace('.',',')}
+
+function exportRows(){
+  const h=["Data","Coppia","Direzione","TipoSL","High","Low","Range pips","SL ordine pips","SL rischio pips","Entrata","StopLoss","TakeProfit","Size lotti","Guadagno EUR","Perdita stimata EUR","Saldo","Rischio %","RR"];
+  const rows=trades.map(t=>[
+    t.date,
+    t.coppia,
+    t.direzione,
+    t.slType==="large"?"Intero":"Slim",
+    csv(t.high),
+    csv(t.low),
+    csv(t.rangePip),
+    csv(r2(t.slPip)),
+    csv(r2(t.riskSlPip)),
+    csv(fmt(t.entrata)),
+    csv(fmt(t.sl)),
+    csv(fmt(t.tp)),
+    csv(t.size),
+    csv(r2(t.guadagno)),
+    csv(r2(t.perdita)),
+    csv(t.saldo),
+    csv(t.rischio),
+    "1:"+t.rr
+  ]);
+  return [h,...rows];
+}
+
 function htmlCell(v,tag){
   return `<${tag}>${String(v).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")}</${tag}>`;
 }
