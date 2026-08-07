@@ -103,6 +103,8 @@ input.inp-yellow-sm::placeholder{color:rgba(0,0,0,0.28);font-weight:400;font-siz
 .btn-save:hover{opacity:.88}
 .btn-export{background:var(--green);color:#fff}
 .btn-export:hover{opacity:.88}
+.btn-import{background:#2c5f7a;color:#fff}
+.btn-import:hover{opacity:.88}
 .btn-clear{background:var(--red);color:#fff}
 .btn-clear:hover{opacity:.88}
 
@@ -278,6 +280,7 @@ tr:hover td{background:#2d2d3a}
       <div class="save-field"><label>GBP/USD direzione</label><select class="inp-yellow" id="gbp-dir"><option value="">— non tradato —</option><option value="buy">Buy</option><option value="sell">Sell</option></select></div>
       <div class="save-field"><label>&nbsp;</label><button class="btn btn-save" onclick="saveTrade()">+ Salva trade</button></div>
       <div class="save-field"><label>&nbsp;</label><button class="btn btn-export" onclick="exportXLS()">&#8595; Esporta Excel</button></div>
+      <div class="save-field"><label>&nbsp;</label><button class="btn btn-import" onclick="document.getElementById('import-file').click()">&#8593; Importa Excel</button><input type="file" id="import-file" accept=".xls,.xlsx,.html,.htm" style="display:none" onchange="importXLS(this)"></div>
     </div>
   </div>
 
@@ -1238,6 +1241,108 @@ function exportRows(){
     t.tipoEntrata||"Buffer"
   ]);
   return [h,...rows];
+}
+
+
+// --- IMPORTAZIONE DA FILE EXCEL ESPORTATO -----------------------------------
+// La memoria del browser non e un archivio: puo essere svuotata dalla pulizia dei dati
+// di navigazione o da politiche automatiche del browser. Questa funzione rilegge un
+// export e ricostruisce i trade, unendoli a quelli gia presenti senza creare duplicati.
+function numIt(v){
+  if(v===undefined||v===null)return null;
+  const t=String(v).trim();
+  if(t==="")return null;
+  const n=parseFloat(t.replace(",","."));
+  return Number.isFinite(n)?n:null;
+}
+
+function rigaATrade(o){
+  const stato=(o["Stato"]||"").trim();
+  const esitoRaw=(o["Esito"]||"").trim();
+  const esito = esitoRaw==="Chiuso" ? "CH" : esitoRaw;
+  const rrTxt=(o["RR usato"]||"").replace("1:","").replace(",",".");
+  const size=numIt(o["Size lotti"]);
+  const riskSlPip=numIt(o["SL rischio pips"]);
+  const perdita=numIt(o["Perdita stimata EUR"]);
+  return {
+    gruppoId:(o["GruppoId"]||"").trim(),
+    date:(o["Data"]||"").trim(),
+    coppia:(o["Coppia"]||"").trim(),
+    direzione:(o["Direzione"]||"").trim(),
+    ordine:(o["Ordine"]||"Unico").trim(),
+    rrUsato:parseFloat(rrTxt)||1,
+    slType:((o["TipoSL"]||"").trim()==="Slim")?"slim":"large",
+    high:numIt(o["High"]), low:numIt(o["Low"]),
+    rangePip:numIt(o["Range pips"]),
+    slPip:numIt(o["SL ordine pips"]), riskSlPip,
+    entrata:numIt(o["Entrata"]), sl:numIt(o["StopLoss"]), tp:numIt(o["TakeProfit"]),
+    size, guadagno:numIt(o["Guadagno EUR"]), perdita,
+    // il valore pip non e nell export: lo ricavo dalla perdita stimata, cosi i risultati
+    // in euro restano identici a quelli calcolati quando il trade fu salvato
+    pipVal:(size>0&&riskSlPip>0&&perdita>0)?(perdita/(size*riskSlPip)):null,
+    saldo:numIt(o["Saldo"]), rischio:numIt(o["Rischio %"]),
+    rr:parseFloat(rrTxt)||1, tpType:"split",
+    completato: stato==="Completo",
+    esito,
+    prezzoChiusura:numIt(o["Prezzo chiusura"]),
+    pips:numIt(o["Pips result"]),
+    mae:numIt(o["MAE pips"]), maeOra:(o["Ora MAE"]||"").trim(),
+    mfe:numIt(o["MFE pips"]), mfeOra:(o["Ora MFE"]||"").trim(),
+    dataCompletamento:(o["Data completamento"]||"").trim()||null,
+    oraEntrata:(o["Ora entrata"]||"").trim(),
+    oraChiusura:(o["Ora chiusura"]||"").trim(),
+    news:((o["News"]||"").trim().toUpperCase()==="SI"),
+    nota:(o["Note"]||"").trim(),
+    rangeLargoHigh:numIt(o["Range Asia High"])||"",
+    rangeLargoLow:numIt(o["Range Asia Low"])||"",
+    rangeFraHigh:numIt(o["Range FRA High"])||"",
+    rangeFraLow:numIt(o["Range FRA Low"])||"",
+    rangeUsato:(o["Range usato"]||"").trim(),
+    caso:(o["Caso range"]||"").trim(),
+    tipoEntrata:(o["Tipo entrata"]||"Buffer").trim()
+  };
+}
+
+function importXLS(input){
+  const file=input.files&&input.files[0];
+  if(!file){return;}
+  const reader=new FileReader();
+  reader.onload=function(ev){
+    try{
+      const doc=new DOMParser().parseFromString(String(ev.target.result),"text/html");
+      const table=doc.querySelector("table");
+      if(!table){alert("Nel file non ho trovato nessuna tabella. Usa un file prodotto da 'Esporta Excel'.");input.value="";return;}
+      const head=[...table.querySelectorAll("thead th")].map(x=>x.textContent.trim());
+      if(!head.length){alert("Il file non ha le intestazioni delle colonne.");input.value="";return;}
+      const righe=[...table.querySelectorAll("tbody tr")];
+      let nuovi=0, gia=0, scartati=0;
+      righe.forEach(tr=>{
+        const celle=[...tr.querySelectorAll("td")].map(x=>x.textContent);
+        if(!celle.length){return;}
+        const o={};
+        head.forEach((h,i)=>{o[h]=celle[i]!==undefined?celle[i]:"";});
+        const t=rigaATrade(o);
+        if(!t.date||!t.coppia||t.entrata==null){scartati++;return;}
+        if(isDuplicateTrade(t)){gia++;return;}
+        trades.push(t);
+        nuovi++;
+      });
+      // riordino cronologico: l export e ordinato per data, la vista poi mostra i recenti in cima
+      trades.sort((a,b)=>String(a.date).localeCompare(String(b.date)));
+      saveTrades();
+      renderLog();
+      alert("Importazione completata.\n\n"+
+            "Trade aggiunti: "+nuovi+"\n"+
+            "Gia presenti (saltati): "+gia+
+            (scartati?("\nRighe non leggibili: "+scartati):"")+
+            "\n\nTotale in archivio: "+trades.length);
+    }catch(err){
+      alert("Non sono riuscito a leggere il file.\n\nDettaglio: "+err.message);
+    }
+    input.value="";
+  };
+  reader.onerror=function(){alert("Errore nella lettura del file.");input.value="";};
+  reader.readAsText(file,"UTF-8");
 }
 
 function htmlCell(v,tag){
