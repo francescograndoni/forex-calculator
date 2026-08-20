@@ -1,0 +1,1470 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Libro Spese</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root{
+    --ink:#1f2a24;
+    --paper:#f6f2e9;
+    --paper-line:#e3ddcc;
+    --moss:#3d5a45;
+    --moss-dark:#2a3f31;
+    --clay:#b5563c;
+    --gold:#c39a4b;
+    --muted:#8a8577;
+    --white:#fffdf8;
+    --green:#4a7a5a;
+    --yellow:#c39a4b;
+    --red:#b5563c;
+    --black:#2a2a24;
+    --personale-bg:#dde8dc;
+    --personale-track:#c6d6c4;
+    --comune-bg:#f2ddc4;
+    --comune-track:#e3c9a6;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--paper);
+    font-family: 'Georgia', 'Iowan Old Style', serif;
+    color:var(--ink);
+    -webkit-font-smoothing:antialiased;
+  }
+  .app{
+    max-width:480px;
+    margin:0 auto;
+    min-height:100vh;
+    background:var(--paper);
+    background-image: linear-gradient(var(--paper-line) 1px, transparent 1px);
+    background-size: 100% 42px;
+    background-position: 0 128px;
+    padding-bottom:150px;
+    position:relative;
+  }
+  header{
+    padding:24px 24px 16px;
+    background:var(--paper);
+    position:sticky;
+    top:0;
+    z-index:5;
+  }
+  .brand{
+    font-family:'Palatino','Georgia',serif;
+    font-size:12px;
+    letter-spacing:3px;
+    text-transform:uppercase;
+    color:var(--muted);
+    margin:0 0 4px;
+  }
+  h1{ font-size:26px; margin:0; font-weight:400; letter-spacing:0.5px;}
+  .month-nav{ display:flex; align-items:center; justify-content:space-between; margin-top:14px;}
+  .month-nav button{ background:none; border:1px solid var(--ink); width:30px;height:30px; border-radius:50%; font-size:15px; cursor:pointer; color:var(--ink); font-family:inherit;}
+  .month-label{ font-size:15px; letter-spacing:1px; text-transform:capitalize;}
+
+  main-section{display:block;}
+
+  /* ---- Budget summary cards ---- */
+  .budget-cards{ margin:18px 24px 0; display:flex; flex-direction:column; gap:14px;}
+  .add-expense-inline{ margin:16px 24px 4px;}
+  .add-expense-inline button{ width:100%; padding:14px; background:var(--ink); color:var(--paper); border:none; border-radius:30px; font-family:inherit; font-size:14.5px; letter-spacing:0.5px; cursor:pointer;}
+  .add-expense-inline button:active{transform:scale(0.98);}
+
+  .budget-card{ padding:16px 18px; border-radius:10px; position:relative; overflow:hidden; color:var(--ink); border:1px solid rgba(0,0,0,0.06); cursor:pointer;}
+  .budget-card:active{ transform:scale(0.99);}
+  .budget-card.card-personale{ background:var(--personale-bg);}
+  .budget-card.card-comune{ background:var(--comune-bg);}
+  .budget-card-row{ display:flex; justify-content:space-between; align-items:baseline; position:relative;}
+  .budget-card-label{ font-size:10.5px; letter-spacing:2px; text-transform:uppercase; color:var(--muted);}
+  .budget-card-amount{ font-size:26px; font-weight:400; font-variant-numeric: tabular-nums; color:var(--ink);}
+  .budget-card-sub{ font-size:11px; color:var(--muted); margin-top:2px;}
+  .bar-track{ height:7px; border-radius:4px; overflow:hidden; margin-top:12px; position:relative;}
+  .card-personale .bar-track{ background:var(--personale-track);}
+  .card-comune .bar-track{ background:var(--comune-track);}
+  .bar-fill{ height:100%; border-radius:4px; transition:width 0.4s ease, background 0.4s ease;}
+  .bar-text{ font-size:11px; color:var(--ink); opacity:0.75; margin-top:7px; position:relative;}
+  .bar-text.over{ color:var(--red); opacity:1; font-weight:bold;}
+
+  .piggy-row{ margin-top:14px; padding-top:12px; position:relative;}
+  .card-personale .piggy-row{ border-top:1px solid var(--personale-track);}
+  .card-comune .piggy-row{ border-top:1px solid var(--comune-track);}
+  .piggy-head{ display:flex; justify-content:space-between; font-size:11.5px; color:#000; margin-bottom:6px; font-weight:bold;}
+  .piggy-name{ font-style:italic;}
+  .piggy-amt{ font-variant-numeric:tabular-nums;}
+  .goal-track{ height:5px; border-radius:3px; overflow:hidden;}
+  .card-personale .goal-track{ background:var(--personale-track);}
+  .card-comune .goal-track{ background:var(--comune-track);}
+  .goal-fill{ height:100%; background:var(--gold); border-radius:3px; transition:width 0.4s ease;}
+  .piggy-note{ font-size:10.5px; color:var(--muted); margin-top:5px;}
+  .piggy-add-link{ font-size:11px; color:var(--clay); text-decoration:underline; background:none; border:none; font-family:inherit; cursor:pointer; padding:0; margin-top:6px; display:inline-block;}
+  .motiv-phrase{ font-size:10.5px; font-style:italic; color:var(--moss-dark); margin-top:6px; line-height:1.4;}
+
+  /* ---- Drill-down detail screen ---- */
+  .detail-overlay{ position:fixed; inset:0; background:var(--paper); z-index:35; display:none; overflow-y:auto;}
+  .detail-overlay.open{display:block;}
+  .detail-header{ padding:20px 24px 16px; position:sticky; top:0; background:var(--paper); display:flex; align-items:center; gap:12px; z-index:2;}
+  .detail-header button{ background:none;border:1px solid var(--ink); width:32px;height:32px;border-radius:50%; font-size:16px; cursor:pointer; font-family:inherit;}
+  .detail-header h2{ margin:0; font-size:19px; font-weight:400;}
+  .detail-body{ padding:6px 24px 40px;}
+  .detail-cat-block{ margin-bottom:18px;}
+  .detail-cat-head{ display:flex; align-items:center; gap:10px; margin-bottom:8px;}
+  .detail-cat-head .cat-icon{width:28px;height:28px;font-size:13px;}
+  .detail-cat-title{ flex:1; font-size:14.5px;}
+  .detail-cat-total{ font-size:14.5px; font-variant-numeric:tabular-nums;}
+  .detail-sub-row{ display:flex; justify-content:space-between; padding:6px 0 6px 38px; font-size:12.5px; color:var(--muted); border-bottom:1px solid var(--paper-line);}
+  .detail-sub-row:last-child{border-bottom:none;}
+  .detail-sub-amt{ color:var(--ink); font-variant-numeric:tabular-nums;}
+  .detail-empty{ margin:0 24px; color:var(--muted); font-style:italic; font-size:13.5px;}
+
+  /* ---- Avoided expense (spese evitate) sheet ---- */
+  .avoided-list-item{ display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid var(--paper-line); font-size:13px;}
+  .avoided-list-item:last-child{border-bottom:none;}
+
+  .section-title{ margin:26px 24px 10px; font-size:11.5px; letter-spacing:2.5px; text-transform:uppercase; color:var(--muted); display:flex; justify-content:space-between; align-items:center;}
+
+  .cat-bars{ margin:0 24px; display:flex; flex-direction:column; gap:12px;}
+  .cat-row{ display:flex; align-items:center; gap:10px;}
+  .cat-icon{ width:30px;height:30px; border-radius:50%; display:flex;align-items:center;justify-content:center; font-size:14px; flex-shrink:0; color:var(--white);}
+  .cat-info{flex:1;min-width:0;}
+  .cat-name-row{ display:flex;justify-content:space-between; font-size:13px; margin-bottom:4px;}
+  .cat-amount{font-variant-numeric:tabular-nums;color:var(--ink);}
+  .cat-track{ height:5px;background:var(--paper-line);border-radius:3px;overflow:hidden;}
+  .cat-fill{height:100%;border-radius:3px;}
+  .cat-over-text{ font-size:10.5px; color:var(--clay); margin-top:3px;}
+  .empty-cats{ margin:0 24px; color:var(--muted); font-size:13.5px; font-style:italic;}
+
+  .list{ margin:0 24px;}
+  .expense-item{ display:flex; align-items:flex-start; gap:12px; padding:14px 0; border-bottom:1px solid var(--paper-line);}
+  .expense-item:last-child{border-bottom:none;}
+  .expense-icon{ width:36px;height:36px; border-radius:50%; display:flex;align-items:center;justify-content:center; font-size:16px; color:var(--white); flex-shrink:0; margin-top:2px;}
+  .expense-mid{flex:1;min-width:0;}
+  .expense-title{font-size:14.5px; display:flex; align-items:center; gap:6px; flex-wrap:wrap;}
+  .badge{ font-size:9.5px; padding:2px 6px; border-radius:8px; letter-spacing:0.5px; text-transform:uppercase; font-family:sans-serif;}
+  .badge-p{ background:#d8e3d8; color:var(--moss-dark);}
+  .badge-c{ background:#ecdcc8; color:#7a5a2e;}
+  .badge-rec{ background:#e3ddcc; color:var(--muted); font-size:12px; padding:0 2px;}
+  .expense-sub{ font-size:11.5px; color:var(--muted); margin-top:3px; display:flex; gap:6px; flex-wrap:wrap;}
+  .necessity-dot{ display:inline-block; width:7px;height:7px;border-radius:50%; margin-right:3px; vertical-align:middle;}
+  .nec-necessaria{background:var(--green);}
+  .nec-comprimibile{background:var(--yellow);}
+  .nec-superflua{background:var(--red);}
+  .expense-amount{ font-size:15.5px; font-variant-numeric:tabular-nums; white-space:nowrap; margin-top:2px;}
+  .expense-del{ background:none;border:none;color:var(--muted); font-size:18px;cursor:pointer;padding:4px 2px;line-height:1; margin-top:2px;}
+  .empty-list{ margin:30px 24px; text-align:center; color:var(--muted);}
+  .empty-list .big{ font-size:38px;display:block;margin-bottom:10px;}
+
+  /* ---- Bottom tabs ---- */
+  .tabbar{ position:fixed; left:50%; transform:translateX(-50%); bottom:0; max-width:480px; width:100%; background:var(--white); border-top:1px solid var(--paper-line); display:flex; z-index:15; padding-bottom:env(safe-area-inset-bottom,0);}
+  .tabbar button{ flex:1; background:none; border:none; font-family:inherit; padding:12px 4px 10px; font-size:11px; color:var(--muted); cursor:pointer; display:flex; flex-direction:column; align-items:center; gap:3px;}
+  .tabbar button .ic{font-size:19px;}
+  .tabbar button.active{ color:var(--moss-dark); font-weight:bold;}
+
+  .fab{ position:fixed; left:50%; transform:translateX(-50%); bottom:74px; max-width:480px; width:calc(100% - 48px); z-index:14;}
+  .fab button{ width:100%; padding:15px; background:var(--ink); color:var(--paper); border:none; border-radius:30px; font-family:inherit; font-size:14.5px; letter-spacing:0.5px; cursor:pointer; box-shadow:0 8px 20px rgba(0,0,0,0.25);}
+  .fab button:active{transform:scale(0.98);}
+
+  /* ---- Sheets / modals ---- */
+  .sheet-overlay{ position:fixed;inset:0; background:rgba(20,20,15,0.5); display:none; align-items:flex-end; z-index:30;}
+  .sheet-overlay.open{display:flex;}
+  .sheet{ background:var(--white); width:100%; max-width:480px; margin:0 auto; border-radius:18px 18px 0 0; padding:20px 22px 26px; max-height:88vh; overflow-y:auto; animation:slideup 0.25s ease;}
+  @keyframes slideup{from{transform:translateY(30px);opacity:0;}to{transform:translateY(0);opacity:1;}}
+  .sheet h2{ margin:0 0 16px; font-size:19px; font-weight:400;}
+  .field{margin-bottom:15px;}
+  .field label{ display:block;font-size:10.5px;letter-spacing:1.5px;text-transform:uppercase; color:var(--muted);margin-bottom:6px;}
+  .field input, .field select{ width:100%; padding:11px 13px; border:1px solid var(--paper-line); border-radius:8px; font-family:inherit; font-size:14.5px; background:var(--paper); color:var(--ink);}
+  .field input:focus, .field select:focus{outline:2px solid var(--moss);outline-offset:1px;}
+  .pill-select{ display:flex;flex-wrap:wrap;gap:7px;}
+  .pill{ padding:8px 13px; border-radius:20px; border:1px solid var(--paper-line); font-size:12.5px; cursor:pointer; background:var(--paper); color:var(--ink); display:flex;align-items:center;gap:5px;}
+  .pill.active{ background:var(--ink); color:var(--paper); border-color:var(--ink);}
+  .checkline{ display:flex; align-items:center; gap:9px; font-size:13.5px; margin-bottom:15px; cursor:pointer;}
+  .checkline input{width:17px;height:17px;}
+  .sheet-actions{ display:flex;gap:10px;margin-top:18px;}
+  .sheet-actions button{ font-family:inherit; font-size:14px; padding:13px; border-radius:10px; border:none; cursor:pointer; flex:1;}
+  .btn-cancel{background:var(--paper-line);color:var(--ink);}
+  .btn-save{background:var(--moss-dark);color:var(--white);}
+  .btn-danger{background:var(--clay);color:var(--white);}
+
+  .tipo-first-row{ display:flex; gap:12px;}
+  .tipo-first-btn{ flex:1; padding:26px 10px; border-radius:12px; border:none; font-family:inherit; font-size:15px; cursor:pointer; display:flex; flex-direction:column; align-items:center; gap:8px; color:var(--ink);}
+  .tipo-first-personale{ background:var(--personale-bg);}
+  .tipo-first-comune{ background:var(--comune-bg);}
+  .tipo-first-btn:active{ transform:scale(0.97);}
+  .tipo-first-icon{ font-size:28px;}
+  .tipo-chosen-badge{ display:inline-flex; align-items:center; gap:6px; padding:5px 12px; border-radius:14px; font-size:12px; cursor:pointer; margin-bottom:10px;}
+  .tipo-chosen-badge.badge-personale{ background:var(--personale-bg); color:var(--ink);}
+  .tipo-chosen-badge.badge-comune{ background:var(--comune-bg); color:var(--ink);}
+
+  .toast{ position:fixed; bottom:130px;left:50%; transform:translateX(-50%); background:var(--ink); color:var(--paper); padding:10px 18px; border-radius:20px; font-size:13px; opacity:0; pointer-events:none; transition:opacity 0.3s ease, transform 0.3s ease; z-index:40;}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(-6px);}
+
+  /* ---- Settings ---- */
+  .settings-block{ margin:0 24px 28px;}
+  .settings-block h3{ font-size:13.5px; text-transform:uppercase; letter-spacing:1.5px; color:var(--moss-dark); margin:0 0 12px; border-bottom:1px solid var(--paper-line); padding-bottom:8px;}
+  .setting-row{ display:flex; align-items:center; gap:10px; margin-bottom:10px;}
+  .setting-row label{ flex:1; font-size:13.5px;}
+  .setting-row input[type=number]{ width:100px; padding:8px 10px; border:1px solid var(--paper-line); border-radius:6px; font-family:inherit; background:var(--white); text-align:right;}
+  .cat-budget-col-labels{ display:flex; align-items:center; gap:8px; margin-bottom:6px;}
+  .cat-budget-col-labels span{ font-size:10px; text-transform:uppercase; letter-spacing:1px; color:var(--muted); text-align:right;}
+  .cat-budget-col-labels span:first-child{ flex:1; text-align:left;}
+  .cat-budget-col-labels span:nth-child(2), .cat-budget-col-labels span:nth-child(3){ width:78px;}
+  .cat-budget-row{ display:flex; align-items:center; gap:8px; margin-bottom:8px;}
+  .cat-budget-row label{ flex:1; font-size:13px;}
+  .cat-budget-row input{ width:78px; padding:7px 8px; border:1px solid var(--paper-line); border-radius:6px; font-family:inherit; background:var(--white); text-align:right; font-size:12.5px;}
+  .cat-settings-card{ border:1px solid var(--paper-line); border-radius:10px; padding:12px 14px; margin-bottom:10px; background:var(--white);}
+  .cat-settings-head{ display:flex; align-items:center; gap:8px; font-size:14px; margin-bottom:8px;}
+  .cat-settings-head .cat-icon{width:26px;height:26px;font-size:12px;}
+  .subchip-row{ display:flex; flex-wrap:wrap; gap:6px; margin-bottom:8px;}
+  .subchip{ background:var(--paper); border:1px solid var(--paper-line); border-radius:14px; padding:4px 10px; font-size:11.5px; display:flex; align-items:center; gap:5px;}
+  .subchip button{ background:none;border:none;color:var(--muted); cursor:pointer; font-size:13px; padding:0; line-height:1;}
+  .inline-add{ display:flex; gap:6px;}
+  .inline-add input{ flex:1; padding:8px 10px; border:1px solid var(--paper-line); border-radius:6px; font-family:inherit; font-size:12.5px;}
+  .inline-add button{ padding:8px 12px; border:none; border-radius:6px; background:var(--moss-dark); color:var(--white); font-family:inherit; font-size:12.5px; cursor:pointer;}
+  .small-link{ background:none;border:none; color:var(--clay); font-family:inherit; font-size:11.5px; text-decoration:underline; cursor:pointer; padding:0;}
+  .list-item-row{ display:flex; align-items:center; justify-content:space-between; padding:9px 0; border-bottom:1px solid var(--paper-line); font-size:13.5px;}
+  .list-item-row:last-child{border-bottom:none;}
+  .export-btn{ width:100%; padding:14px; background:var(--moss-dark); color:var(--white); border:none; border-radius:10px; font-family:inherit; font-size:14px; cursor:pointer; margin-top:6px;}
+  .add-cat-form{ display:flex; gap:6px; margin-top:4px;}
+
+  /* ---- Stats ---- */
+  .stats-block{ margin:0 24px 30px;}
+  .stats-block h3{ font-size:12.5px; text-transform:uppercase; letter-spacing:2px; color:var(--muted); margin:0 0 12px;}
+  .trend-chart{ display:flex; align-items:flex-end; gap:6px; height:120px; padding:0 2px;}
+  .trend-col{ flex:1; display:flex; flex-direction:column; align-items:center; justify-content:flex-end; height:100%;}
+  .trend-bar{ width:100%; max-width:26px; background:var(--moss); border-radius:3px 3px 0 0; min-height:2px;}
+  .trend-label{ font-size:9.5px; color:var(--muted); margin-top:5px; text-transform:capitalize;}
+  .trend-value{ font-size:9px; color:var(--ink); margin-bottom:3px; font-variant-numeric:tabular-nums;}
+  .hbar-row{ margin-bottom:11px;}
+  .hbar-label-row{ display:flex; justify-content:space-between; font-size:12.5px; margin-bottom:4px;}
+  .hbar-track{ height:16px; background:var(--paper-line); border-radius:4px; overflow:hidden; display:flex;}
+  .hbar-seg{ height:100%;}
+  .stacked-legend{ display:flex; gap:14px; margin-top:8px; font-size:11px; flex-wrap:wrap;}
+  .legend-dot{ display:inline-block; width:8px;height:8px;border-radius:50%; margin-right:4px;}
+  .empty-stats{ color:var(--muted); font-style:italic; font-size:13px;}
+
+  ::-webkit-scrollbar{display:none;}
+</style>
+</head>
+<body>
+<div class="app" id="app">
+
+  <header>
+    <p class="brand">Libro delle Spese</p>
+    <h1 id="totalTitle">Le tue spese</h1>
+    <div class="month-nav">
+      <button onclick="changeMonth(-1)">&#8249;</button>
+      <div class="month-label" id="monthLabel">—</div>
+      <button onclick="changeMonth(1)">&#8250;</button>
+    </div>
+  </header>
+
+  <div class="add-expense-inline">
+    <button onclick="openAddSheet()">+ Aggiungi spesa</button>
+  </div>
+
+  <!-- ============ HOME TAB ============ -->
+  <div id="tab-home">
+    <div class="budget-cards" id="budgetCards"></div>
+
+    <div class="section-title">Per categoria</div>
+    <div class="cat-bars" id="catBars"></div>
+
+    <div class="section-title">Movimenti</div>
+    <div class="list" id="list"></div>
+  </div>
+
+  <!-- ============ STATS TAB ============ -->
+  <div id="tab-stats" style="display:none;">
+    <div class="stats-block">
+      <h3>Andamento ultimi 6 mesi</h3>
+      <div class="trend-chart" id="trendChart"></div>
+    </div>
+    <div class="stats-block">
+      <h3>Personale vs Comune (6 mesi)</h3>
+      <div id="pcTrend"></div>
+    </div>
+    <div class="stats-block">
+      <h3>Spese per categoria (mese corrente)</h3>
+      <div id="catStats"></div>
+    </div>
+    <div class="stats-block">
+      <h3>Necessarie / Comprimibili / Superflue</h3>
+      <div id="necStats"></div>
+    </div>
+    <div class="stats-block">
+      <h3>Carburanti: Diesel vs GPL/Benzina</h3>
+      <div id="fuelStats"></div>
+    </div>
+    <div class="stats-block">
+      <h3>Metodi di pagamento (mese corrente)</h3>
+      <div id="paymentStats"></div>
+    </div>
+    <div class="stats-block">
+      <h3>Salvadanai</h3>
+      <div id="piggyStats"></div>
+    </div>
+    <div class="stats-block">
+      <button class="export-btn" onclick="exportExcel()">⬇ Esporta tutte le spese in Excel</button>
+    </div>
+  </div>
+
+  <!-- ============ SETTINGS TAB ============ -->
+  <div id="tab-settings" style="display:none;">
+    <div class="settings-block">
+      <h3>Budget mensili</h3>
+      <div class="setting-row">
+        <label>Personale (€/mese)</label>
+        <input type="number" id="budgetPersonaleInput" min="0" step="1">
+      </div>
+      <div class="setting-row">
+        <label>Comune (€/mese)</label>
+        <input type="number" id="budgetComuneInput" min="0" step="1">
+      </div>
+      <div class="sheet-actions" style="margin-top:10px;">
+        <button class="btn-save" style="flex:none; padding:10px 18px;" onclick="saveBudgetsSettings()">Salva budget</button>
+      </div>
+    </div>
+
+    <div class="settings-block">
+      <h3>Obiettivi salvadanaio</h3>
+      <div class="field">
+        <label>Nome obiettivo personale</label>
+        <input type="text" id="goalPersonaleName" placeholder="Es. Nuovo orologio">
+      </div>
+      <div class="setting-row">
+        <label>Target personale (€)</label>
+        <input type="number" id="goalPersonaleTarget" min="0" step="1">
+      </div>
+      <div class="field">
+        <label>Nome obiettivo comune</label>
+        <input type="text" id="goalComuneName" placeholder="Es. Vacanza estate">
+      </div>
+      <div class="setting-row">
+        <label>Target comune (€)</label>
+        <input type="number" id="goalComuneTarget" min="0" step="1">
+      </div>
+      <div class="sheet-actions" style="margin-top:10px;">
+        <button class="btn-save" style="flex:none; padding:10px 18px;" onclick="saveGoalsSettings()">Salva obiettivi</button>
+      </div>
+      <p style="font-size:11.5px;color:var(--muted);margin-top:10px;">
+        A ogni nuovo mese, quanto risparmi rispetto al budget (se non lo superi) viene aggiunto in automatico al salvadanaio corrispondente.
+      </p>
+    </div>
+
+    <div class="settings-block">
+      <h3>Budget per categoria (opzionale)</h3>
+      <div class="cat-budget-col-labels"><span></span><span>Personale</span><span>Comune</span></div>
+      <div id="catBudgetList"></div>
+    </div>
+
+    <div class="settings-block">
+      <h3>Categorie e sottocategorie</h3>
+      <div id="catSettingsList"></div>
+      <div class="add-cat-form">
+        <input type="text" id="newCatName" placeholder="Nuova categoria...">
+        <button onclick="addCategory()">+ Aggiungi</button>
+      </div>
+    </div>
+
+    <div class="settings-block">
+      <h3>Metodi di pagamento</h3>
+      <div id="paymentSettingsList"></div>
+      <div class="add-cat-form">
+        <input type="text" id="newPaymentName" placeholder="Nuovo metodo...">
+        <button onclick="addPaymentMethod()">+ Aggiungi</button>
+      </div>
+    </div>
+
+    <div class="settings-block">
+      <h3>Spese ricorrenti attive</h3>
+      <div id="recurringList"></div>
+    </div>
+  </div>
+
+</div>
+
+<div class="tabbar">
+  <button id="tabBtnHome" class="active" onclick="switchTab('home')"><span class="ic">🧾</span>Spese</button>
+  <button id="tabBtnStats" onclick="switchTab('stats')"><span class="ic">📊</span>Statistiche</button>
+  <button id="tabBtnSettings" onclick="switchTab('settings')"><span class="ic">⚙️</span>Impostazioni</button>
+</div>
+
+
+<!-- ============ STEP 1: TIPO FIRST ============ -->
+<div class="sheet-overlay" id="overlayTipoFirst" onclick="closeTipoFirstIfOverlay(event)">
+  <div class="sheet">
+    <h2>Nuova spesa</h2>
+    <p style="font-size:13px;color:var(--muted);margin-top:-8px;margin-bottom:18px;">Prima di tutto, questa spesa è personale o comune?</p>
+    <div class="tipo-first-row">
+      <button class="tipo-first-btn tipo-first-personale" onclick="chooseTipoFirst('personale')">
+        <span class="tipo-first-icon">👤</span>Personale
+      </button>
+      <button class="tipo-first-btn tipo-first-comune" onclick="chooseTipoFirst('comune')">
+        <span class="tipo-first-icon">👥</span>Comune
+      </button>
+    </div>
+    <div class="sheet-actions" style="margin-top:18px;">
+      <button class="btn-cancel" onclick="closeTipoFirst()">Annulla</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ STEP 2: EXPENSE DETAILS ============ -->
+<div class="sheet-overlay" id="overlay" onclick="closeSheetIfOverlay(event)">
+  <div class="sheet" id="sheetAdd">
+    <div class="tipo-chosen-badge" id="tipoChosenBadge" onclick="backToTipoFirst()"></div>
+    <h2 id="sheetAddTitle">Nuova spesa</h2>
+    <div class="field">
+      <label>Importo (€)</label>
+      <input type="number" id="amountInput" placeholder="0,00" step="0.01" min="0" inputmode="decimal">
+    </div>
+    <div class="field">
+      <label>Data</label>
+      <input type="date" id="dateInput">
+    </div>
+    <div class="field">
+      <label>Categoria</label>
+      <div class="pill-select" id="catSelect"></div>
+    </div>
+    <div class="field" id="subcatField" style="display:none;">
+      <label>Sottocategoria</label>
+      <div class="pill-select" id="subcatSelect"></div>
+    </div>
+    <div class="field">
+      <label>Metodo di pagamento</label>
+      <div class="pill-select" id="paymentSelect"></div>
+    </div>
+    <div class="field">
+      <label>Necessità</label>
+      <div class="pill-select" id="necessitySelect"></div>
+    </div>
+    <label class="checkline">
+      <input type="checkbox" id="recurringCheck">
+      Spesa ricorrente (ripetuta ogni mese)
+    </label>
+    <div class="field">
+      <label>Descrizione (facoltativa)</label>
+      <input type="text" id="descInput" placeholder="Es. Spesa al supermercato" maxlength="60">
+    </div>
+    <div class="sheet-actions">
+      <button class="btn-cancel" onclick="closeSheet()">Annulla</button>
+      <button class="btn-save" onclick="saveExpense()">Salva</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ DRILL-DOWN DETAIL (Personale / Comune) ============ -->
+<div class="detail-overlay" id="detailOverlay">
+  <div class="detail-header">
+    <button onclick="closeTipoDetail()">&#8249;</button>
+    <h2 id="detailTitle">Dettaglio</h2>
+  </div>
+  <div class="detail-body" id="detailBody"></div>
+</div>
+
+<!-- ============ AVOIDED EXPENSE SHEET ("spesa evitata") ============ -->
+<div class="sheet-overlay" id="overlayAvoided" onclick="closeAvoidedIfOverlay(event)">
+  <div class="sheet" id="sheetAvoided">
+    <h2>Spesa evitata 🙅</h2>
+    <p style="font-size:12.5px;color:var(--muted);margin-top:-8px;margin-bottom:16px;">Un euro risparmiato è un euro guadagnato: registra qui uno sfizio a cui hai rinunciato. Va dritto nel salvadanaio <span id="avoidedTipoLabel"></span>.</p>
+    <div class="field">
+      <label>Cosa hai evitato di comprare?</label>
+      <input type="text" id="avoidedDescInput" placeholder="Es. Caffè al bar" maxlength="60">
+    </div>
+    <div class="field">
+      <label>Quanto avresti speso (€)</label>
+      <input type="number" id="avoidedAmountInput" placeholder="0,00" step="0.01" min="0" inputmode="decimal">
+    </div>
+    <div class="sheet-actions">
+      <button class="btn-cancel" onclick="closeAvoided()">Annulla</button>
+      <button class="btn-save" onclick="saveAvoided()">Aggiungi al salvadanaio</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* =========================================================
+   DEFAULT DATA
+   ========================================================= */
+const DEFAULT_CATEGORIES = [
+  { id:'trasporti', name:'Trasporti', icon:'🚗', color:'#3d5a45', subs:['GPL','Benzina','Diesel','Metro/Bus','Altro'] },
+  { id:'spesa', name:'Spesa', icon:'🛒', color:'#b5563c', subs:['Supermercato','Amazon','Altro'] },
+  { id:'bar_ristorante', name:'Bar/Ristorante', icon:'🍽️', color:'#c39a4b', subs:['Colazione','Pranzo','Cena','Fuori orario','Altro'] },
+  { id:'casa', name:'Casa', icon:'🏠', color:'#8a6a3d', subs:['Condominio','Bollette','Manutenzione ordinaria','Manutenzione straordinaria','Migliorie','Altro'] },
+  { id:'divertimento', name:'Divertimento', icon:'🎉', color:'#5c4a8a', subs:['Hobbies','Viaggi','Ricreativo','Cinema/Teatro/Concerti','Altro'] },
+  { id:'auto', name:'Auto', icon:'🔧', color:'#4a7a8a', subs:['Bollo/Assicurazione','Manutenzione ordinaria','Manutenzione straordinaria','Altro'] },
+  { id:'salute', name:'Salute', icon:'💊', color:'#a34a6e', subs:['Sport','Farmacia','Dentista','Psico','Visite/esami','Altro'] },
+  { id:'abbonamenti', name:'Abbonamenti', icon:'📱', color:'#3d6b5c', subs:['ChatGPT','Claude','Deezer','TradingView','Altro'] },
+  { id:'abbigliamento', name:'Abbigliamento', icon:'👕', color:'#8a5a3d', subs:['Vestiti','Scarpe','Altro'] },
+  { id:'beneficenza', name:'Beneficenza', icon:'❤️', color:'#a3424a', subs:['Africa Chiama','Chiesa','Altro'] },
+];
+const DEFAULT_PAYMENTS = ['Contanti','Bancomat','Carta di credito','Bonifico','Buoni Pasto','Addebito CC','Altro'];
+const NECESSITY_LEVELS = [
+  { id:'necessaria', label:'Necessaria', color:'#4a7a5a' },
+  { id:'comprimibile', label:'Comprimibile', color:'#c39a4b' },
+  { id:'superflua', label:'Superflua', color:'#b5563c' },
+];
+
+/* Frasi motivazionali: mai colpevolizzanti, di sprone/gratificazione.
+   Chiave = necessità dominante nella spesa che ha fatto scattare la soglia, poi zona. */
+const MOTIVATIONAL_PHRASES = {
+  necessaria: {
+    yellow: [
+      "Sono soprattutto spese necessarie: stai solo vivendo la tua vita, tutto ok. 🙂",
+      "Le necessità vengono prima di tutto: nessun allarme, solo da tenere d'occhio.",
+      "Spese essenziali in testa: è normale, il budget è lì per essere usato con criterio."
+    ],
+    red: [
+      "Anche qui, per lo più necessità reali: valuta con calma se c'è margine altrove.",
+      "Le basi vengono prima: se serve, puoi recuperare su qualcos'altro di comprimibile.",
+      "Spese dovute, niente panico: guarda se altrove puoi respirare un po' di più."
+    ],
+    black: [
+      "Hai sforato ma erano soprattutto necessità: capita, il mese prossimo si riparte meglio. 💪",
+      "Succede con le spese essenziali: nessun dramma, occhio al prossimo mese.",
+      "Sforamento da spese necessarie: non è un fallimento, è vita reale."
+    ],
+  },
+  comprimibile: {
+    yellow: [
+      "C'è un margine di ottimizzazione qui, se ti va di approfittarne. ✨",
+      "Piccoli aggiustamenti su queste voci possono fare una bella differenza nel tempo.",
+      "Zona comprimibile: un piccolo occhio in più e il salvadanaio ti ringrazia."
+    ],
+    red: [
+      "Qui c'è del margine reale: anche un piccolo taglio oggi è un mattoncino per l'obiettivo.",
+      "Spese comprimibili in salita: un piccolo sforzo qui si sente parecchio sul salvadanaio.",
+      "Vale la pena dare un'occhiata: potresti trovare un risparmio senza troppi sacrifici."
+    ],
+    black: [
+      "Hai sforato su voci comprimibili: prendilo come uno spunto per il mese prossimo, non come un errore.",
+      "Capita: da qui puoi ripartire con qualche piccolo aggiustamento mirato. 💪",
+      "Sforamento su spese flessibili: la prossima volta anche un piccolo taglio farà la sua parte."
+    ],
+  },
+  superflua: {
+    yellow: [
+      "Qualche sfizio in più questo mese: goditelo, basta tenerlo d'occhio! 🎉",
+      "Le spese superflue si fanno sentire: magari un piccolo taglio ti avvicina all'obiettivo.",
+      "Un po' di sfizi ci stanno sempre: giusto un occhio per non esagerare."
+    ],
+    red: [
+      "Gli sfizi stanno salendo: che ne dici di trasformarne uno in salvadanaio questo mese? 🐷",
+      "Zona superflua bella piena: ogni sfizio saltato oggi è un passo verso il tuo obiettivo.",
+      "Qui c'è il margine più semplice da recuperare: anche solo uno sfizio in meno conta."
+    ],
+    black: [
+      "Sforato soprattutto in sfizi: va benissimo, ricomincia domani con uno sfizio 'evitato'! 💪",
+      "È successo, capita: registra qualche 'spesa evitata' nei prossimi giorni per riequilibrare.",
+      "Sforamento su spese superflue: nessun dramma, è la categoria più facile da recuperare dopo."
+    ],
+  },
+};
+
+function zoneFromPct(pct){
+  if(pct <= 50) return null;
+  if(pct <= 75) return 'yellow';
+  if(pct <= 100) return 'red';
+  return 'black';
+}
+function dominantNecessity(expList){
+  const totals = { necessaria:0, comprimibile:0, superflua:0 };
+  expList.forEach(e=>{ if(e.necessity && totals.hasOwnProperty(e.necessity)) totals[e.necessity] += e.amount; });
+  let best=null, bestVal=0;
+  Object.keys(totals).forEach(k=>{ if(totals[k]>bestVal){ bestVal=totals[k]; best=k; } });
+  return best;
+}
+function motivationalPhraseFor(expList, pct){
+  const zone = zoneFromPct(pct);
+  if(!zone) return '';
+  const nec = dominantNecessity(expList);
+  if(!nec) return '';
+  const pool = MOTIVATIONAL_PHRASES[nec] && MOTIVATIONAL_PHRASES[nec][zone];
+  if(!pool || pool.length===0) return '';
+  return pool[Math.floor(Math.random()*pool.length)];
+}
+
+/* =========================================================
+   STATE
+   ========================================================= */
+let expenses = [];
+let recurringTemplates = [];
+let avoidedSavings = []; // [{id, desc, amount, date, tipo}]
+let settings = null; // {categories, paymentMethods, budgets:{personale,comune,categorie:{catId:{personale,comune}}}, goals:{personale:{name,target},comune:{name,target}}, piggyBank:{personale,comune}, lastPiggyProcessedMonth, lastRecurringMonth}
+
+let currentDate = new Date();
+let currentTab = 'home';
+let selectedCatId = null;
+let selectedSub = null;
+let selectedTipo = 'personale';
+let selectedPayment = null;
+let selectedNecessity = null;
+
+const EXP_KEY = 'expenses:list';
+const REC_KEY = 'recurring:templates';
+const SET_KEY = 'settings:all';
+const AVOID_KEY = 'avoided:list';
+let detailTipoOpen = null; // 'personale' | 'comune' - for drill-down screen
+let avoidedTipo = 'personale'; // tipo scelto nel modulo spesa evitata
+
+/* =========================================================
+   HELPERS
+   ========================================================= */
+function fmtMoney(n){ return (n||0).toLocaleString('it-IT', {style:'currency', currency:'EUR'}); }
+function monthKey(d){ return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0'); }
+function monthLabelStr(d){ return d.toLocaleDateString('it-IT', {month:'long', year:'numeric'}); }
+function daysInMonth(y,m){ return new Date(y, m, 0).getDate(); } // m = 1-12
+function escapeHtml(s){ const d = document.createElement('div'); d.textContent = s==null?'':s; return d.innerHTML; }
+function catById(id){ return settings.categories.find(c=>c.id===id) || null; }
+function budgetColor(pct){
+  if(pct <= 50) return getComputedStyle(document.documentElement).getPropertyValue('--green').trim();
+  if(pct <= 75) return getComputedStyle(document.documentElement).getPropertyValue('--yellow').trim();
+  if(pct <= 100) return getComputedStyle(document.documentElement).getPropertyValue('--red').trim();
+  return getComputedStyle(document.documentElement).getPropertyValue('--black').trim();
+}
+function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
+function addMonths(key, delta){
+  const [y,m] = key.split('-').map(Number);
+  const d = new Date(y, m-1+delta, 1);
+  return monthKey(d);
+}
+function monthCompare(a,b){ return a.localeCompare(b); } // 'YYYY-MM' strings sort correctly
+
+/* =========================================================
+   LOAD / SAVE
+   ========================================================= */
+async function loadData(){
+  try{
+    const raw = localStorage.getItem(EXP_KEY);
+    expenses = raw ? JSON.parse(raw) : [];
+  }catch(e){ expenses = []; }
+
+  try{
+    const raw = localStorage.getItem(REC_KEY);
+    recurringTemplates = raw ? JSON.parse(raw) : [];
+  }catch(e){ recurringTemplates = []; }
+
+  try{
+    const raw = localStorage.getItem(AVOID_KEY);
+    avoidedSavings = raw ? JSON.parse(raw) : [];
+  }catch(e){ avoidedSavings = []; }
+
+  try{
+    const raw = localStorage.getItem(SET_KEY);
+    settings = raw ? JSON.parse(raw) : null;
+  }catch(e){ settings = null; }
+
+  if(!settings){
+    settings = {
+      categories: JSON.parse(JSON.stringify(DEFAULT_CATEGORIES)),
+      paymentMethods: [...DEFAULT_PAYMENTS],
+      budgets: { personale:500, comune:1000, categorie:{} },
+      goals: { personale:{name:'', target:0}, comune:{name:'', target:0} },
+      piggyBank: { personale:0, comune:0 },
+      lastPiggyProcessedMonth: monthKey(new Date()),
+      lastRecurringMonth: null,
+    };
+  }
+  // backfill missing fields for safety (upgrades)
+  if(!settings.budgets.categorie) settings.budgets.categorie = {};
+  // migrazione: vecchio formato budget categoria era un numero singolo -> {personale, comune}
+  Object.keys(settings.budgets.categorie).forEach(catId=>{
+    const v = settings.budgets.categorie[catId];
+    if(typeof v === 'number'){
+      settings.budgets.categorie[catId] = { personale: v, comune: 0 };
+    }
+  });
+  if(!settings.goals) settings.goals = { personale:{name:'', target:0}, comune:{name:'', target:0} };
+  if(!settings.piggyBank) settings.piggyBank = { personale:0, comune:0 };
+
+  processPiggyBank();
+  generateRecurring();
+
+  await persistAll();
+  render();
+}
+
+async function persistExpenses(){
+  try{ localStorage.setItem(EXP_KEY, JSON.stringify(expenses)); }
+  catch(e){ showToast('Errore nel salvataggio'); }
+}
+async function persistRecurring(){
+  try{ localStorage.setItem(REC_KEY, JSON.stringify(recurringTemplates)); }
+  catch(e){ showToast('Errore nel salvataggio'); }
+}
+async function persistAvoided(){
+  try{ localStorage.setItem(AVOID_KEY, JSON.stringify(avoidedSavings)); }
+  catch(e){ showToast('Errore nel salvataggio'); }
+}
+async function persistSettings(){
+  try{ localStorage.setItem(SET_KEY, JSON.stringify(settings)); }
+  catch(e){ showToast('Errore nel salvataggio'); }
+}
+async function persistAll(){
+  await persistExpenses(); await persistRecurring(); await persistSettings(); await persistAvoided();
+}
+
+/* =========================================================
+   PIGGY BANK — finalizes past months' leftover budget
+   ========================================================= */
+function spentForMonthTipo(mKey, tipo){
+  return expenses
+    .filter(e => e.date.slice(0,7) === mKey && e.tipo === tipo)
+    .reduce((s,e)=>s+e.amount,0);
+}
+
+function processPiggyBank(){
+  const nowKey = monthKey(new Date());
+  if(!settings.lastPiggyProcessedMonth){
+    settings.lastPiggyProcessedMonth = nowKey;
+    return;
+  }
+  let cursor = settings.lastPiggyProcessedMonth;
+  let guard = 0;
+  while(monthCompare(addMonths(cursor,1), nowKey) < 0 && guard < 60){
+    cursor = addMonths(cursor, 1);
+    const spentP = spentForMonthTipo(cursor, 'personale');
+    const spentC = spentForMonthTipo(cursor, 'comune');
+    const leftoverP = Math.max(0, (settings.budgets.personale||0) - spentP);
+    const leftoverC = Math.max(0, (settings.budgets.comune||0) - spentC);
+    settings.piggyBank.personale = (settings.piggyBank.personale||0) + leftoverP;
+    settings.piggyBank.comune = (settings.piggyBank.comune||0) + leftoverC;
+    settings.lastPiggyProcessedMonth = cursor;
+    guard++;
+  }
+}
+
+/* =========================================================
+   RECURRING EXPENSES — auto-generate for current month
+   ========================================================= */
+function generateRecurring(){
+  if(recurringTemplates.length === 0) return;
+  const nowKey = monthKey(new Date());
+  let startKey = settings.lastRecurringMonth ? addMonths(settings.lastRecurringMonth,1) : nowKey;
+  if(monthCompare(startKey, nowKey) > 0) return;
+  let cursor = startKey;
+  let guard = 0;
+  while(monthCompare(cursor, nowKey) <= 0 && guard < 36){
+    recurringTemplates.forEach(t=>{
+      const exists = expenses.some(e => e.recurringTemplateId === t.id && e.date.slice(0,7) === cursor);
+      if(!exists){
+        const [y,m] = cursor.split('-').map(Number);
+        const day = Math.min(t.dayOfMonth, daysInMonth(y,m));
+        const dateStr = cursor + '-' + String(day).padStart(2,'0');
+        expenses.push({
+          id: uid(), desc: t.desc, amount: t.amount, date: dateStr,
+          catId: t.catId, sub: t.sub, tipo: t.tipo, payment: t.payment,
+          necessity: t.necessity, recurring:true, recurringTemplateId: t.id
+        });
+      }
+    });
+    cursor = addMonths(cursor, 1);
+    guard++;
+  }
+  settings.lastRecurringMonth = nowKey;
+}
+
+/* =========================================================
+   TAB SWITCHING
+   ========================================================= */
+function switchTab(tab){
+  currentTab = tab;
+  document.getElementById('tab-home').style.display = tab==='home' ? 'block' : 'none';
+  document.getElementById('tab-stats').style.display = tab==='stats' ? 'block' : 'none';
+  document.getElementById('tab-settings').style.display = tab==='settings' ? 'block' : 'none';
+  document.getElementById('tabBtnHome').classList.toggle('active', tab==='home');
+  document.getElementById('tabBtnStats').classList.toggle('active', tab==='stats');
+  document.getElementById('tabBtnSettings').classList.toggle('active', tab==='settings');
+  if(tab==='stats') renderStats();
+  if(tab==='settings') renderSettings();
+}
+
+function changeMonth(delta){
+  currentDate = new Date(currentDate.getFullYear(), currentDate.getMonth()+delta, 1);
+  render();
+}
+
+/* =========================================================
+   HOME RENDER
+   ========================================================= */
+function currentMonthExpenses(){
+  const key = monthKey(currentDate);
+  return expenses.filter(e => e.date.slice(0,7) === key);
+}
+
+function render(){
+  document.getElementById('monthLabel').textContent = monthLabelStr(currentDate);
+  const monthExp = currentMonthExpenses().sort((a,b)=> b.date.localeCompare(a.date));
+  const totalP = monthExp.filter(e=>e.tipo==='personale').reduce((s,e)=>s+e.amount,0);
+  const totalC = monthExp.filter(e=>e.tipo==='comune').reduce((s,e)=>s+e.amount,0);
+
+  renderBudgetCards(totalP, totalC, monthExp);
+  renderCatBars(monthExp, 'catBars');
+  renderList(monthExp);
+}
+
+function renderBudgetCards(totalP, totalC, monthExp){
+  const wrap = document.getElementById('budgetCards');
+  wrap.innerHTML = '';
+  wrap.appendChild(makeBudgetCard('Personale', totalP, settings.budgets.personale, settings.goals.personale, settings.piggyBank.personale, true, monthExp.filter(e=>e.tipo==='personale')));
+  wrap.appendChild(makeBudgetCard('Comune', totalC, settings.budgets.comune, settings.goals.comune, settings.piggyBank.comune, false, monthExp.filter(e=>e.tipo==='comune')));
+}
+
+function makeBudgetCard(label, spent, budget, goal, piggyAmt, isPersonale, tipoExp){
+  const tipoKey = isPersonale ? 'personale' : 'comune';
+  const div = document.createElement('div');
+  div.className = 'budget-card ' + (isPersonale ? 'card-personale' : 'card-comune');
+  div.onclick = () => openTipoDetail(tipoKey);
+  const pct = budget>0 ? (spent/budget*100) : 0;
+  const color = budgetColor(pct);
+  const overAmt = spent - budget;
+  let barHtml = '';
+  if(budget > 0){
+    const phrase = motivationalPhraseFor(tipoExp, pct);
+    barHtml = `<div class="bar-track"><div class="bar-fill" style="width:${Math.min(pct,100)}%; background:${color}"></div></div>
+      <div class="bar-text ${overAmt>0?'over':''}">${overAmt>0 ? 'Sforato di ' + fmtMoney(overAmt) : fmtMoney(Math.max(0,budget-spent)) + ' rimanenti'} · budget ${fmtMoney(budget)}</div>
+      ${phrase ? `<div class="motiv-phrase">${escapeHtml(phrase)}</div>` : ''}`;
+  } else {
+    barHtml = `<div class="bar-text">Nessun budget impostato (vai in Impostazioni)</div>`;
+  }
+  let goalHtml = '';
+  if(goal && goal.target > 0){
+    const remPct = Math.max(0, 100 - ((piggyAmt||0)/goal.target*100));
+    const reached = (piggyAmt||0) >= goal.target;
+    goalHtml = `<div class="piggy-row">
+      <div class="piggy-head"><span class="piggy-name">🐷 ${escapeHtml(goal.name || 'Obiettivo')}</span><span class="piggy-amt">${fmtMoney(piggyAmt||0)} / ${fmtMoney(goal.target)}</span></div>
+      <div class="goal-track"><div class="goal-fill" style="width:${remPct}%"></div></div>
+      <div class="piggy-note">${reached ? '🎉 Obiettivo raggiunto!' : Math.round(remPct) + '% mancante'}</div>
+      <button class="piggy-add-link" onclick="event.stopPropagation(); openAvoided('${tipoKey}')">+ Spesa evitata</button>
+    </div>`;
+  } else {
+    goalHtml = `<div class="piggy-row"><div class="piggy-note">Salvadanaio: <b style="color:#000;">${fmtMoney(piggyAmt||0)}</b> · imposta un obiettivo in Impostazioni</div>
+      <button class="piggy-add-link" onclick="event.stopPropagation(); openAvoided('${tipoKey}')">+ Spesa evitata</button>
+    </div>`;
+  }
+  div.innerHTML = `<div class="budget-card-row"><div><div class="budget-card-label">${label}</div><div class="budget-card-amount">${fmtMoney(spent)}</div></div></div>${barHtml}${goalHtml}`;
+  return div;
+}
+
+function renderCatBars(monthExp, containerId){
+  const wrap = document.getElementById(containerId);
+  const byCat = {};
+  const expByCat = {};
+  monthExp.forEach(e=>{
+    byCat[e.catId] = (byCat[e.catId]||0) + e.amount;
+    (expByCat[e.catId] = expByCat[e.catId]||[]).push(e);
+  });
+  const catKeys = Object.keys(byCat).sort((a,b)=>byCat[b]-byCat[a]);
+  if(catKeys.length===0){
+    wrap.innerHTML = '<div class="empty-cats">Nessuna spesa registrata questo mese.</div>';
+    return;
+  }
+  const maxVal = Math.max(...catKeys.map(k=>byCat[k]));
+  wrap.innerHTML = catKeys.map(k=>{
+    const c = catById(k);
+    if(!c) return '';
+    const spent = byCat[k];
+    const cb = settings.budgets.categorie[k];
+    const catBudget = cb ? ((cb.personale||0) + (cb.comune||0)) : 0;
+    let pct, barColor, overText='', phraseHtml='';
+    if(catBudget > 0){
+      pct = Math.min(100, spent/catBudget*100);
+      barColor = budgetColor(spent/catBudget*100);
+      if(spent > catBudget) overText = `<div class="cat-over-text">Sforato di ${fmtMoney(spent-catBudget)}</div>`;
+      const phrase = motivationalPhraseFor(expByCat[k], spent/catBudget*100);
+      if(phrase) phraseHtml = `<div class="motiv-phrase">${escapeHtml(phrase)}</div>`;
+    } else {
+      pct = maxVal>0 ? (spent/maxVal)*100 : 0;
+      barColor = c.color;
+    }
+    return `<div class="cat-row">
+      <div class="cat-icon" style="background:${c.color}">${c.icon}</div>
+      <div class="cat-info">
+        <div class="cat-name-row"><span>${escapeHtml(c.name)}</span><span class="cat-amount">${fmtMoney(spent)}${catBudget?(' / '+fmtMoney(catBudget)):''}</span></div>
+        <div class="cat-track"><div class="cat-fill" style="width:${pct}%; background:${barColor}"></div></div>
+        ${overText}${phraseHtml}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+/* =========================================================
+   DETAIL DRILL-DOWN (Personale / Comune)
+   ========================================================= */
+function openTipoDetail(tipo){
+  detailTipoOpen = tipo;
+  const monthExp = currentMonthExpenses().filter(e=>e.tipo===tipo);
+  document.getElementById('detailTitle').textContent = 'Dettaglio ' + (tipo==='personale' ? 'Personale' : 'Comune') + ' · ' + monthLabelStr(currentDate);
+
+  const byCat = {};
+  monthExp.forEach(e=>{
+    if(!byCat[e.catId]) byCat[e.catId] = { total:0, subs:{} };
+    byCat[e.catId].total += e.amount;
+    const subKey = e.sub || '—';
+    byCat[e.catId].subs[subKey] = (byCat[e.catId].subs[subKey]||0) + e.amount;
+  });
+  const catKeys = Object.keys(byCat).sort((a,b)=>byCat[b].total-byCat[a].total);
+  const body = document.getElementById('detailBody');
+  if(catKeys.length===0){
+    body.innerHTML = '<div class="detail-empty">Nessuna spesa registrata per questo ambito, questo mese.</div>';
+  } else {
+    body.innerHTML = catKeys.map(k=>{
+      const c = catById(k);
+      const catData = byCat[k];
+      const subKeys = Object.keys(catData.subs).sort((a,b)=>catData.subs[b]-catData.subs[a]);
+      return `<div class="detail-cat-block">
+        <div class="detail-cat-head">
+          <div class="cat-icon" style="background:${c?c.color:'#999'}">${c?c.icon:'📎'}</div>
+          <div class="detail-cat-title">${c?escapeHtml(c.name):'—'}</div>
+          <div class="detail-cat-total">${fmtMoney(catData.total)}</div>
+        </div>
+        ${subKeys.map(s=>`<div class="detail-sub-row"><span>${escapeHtml(s)}</span><span class="detail-sub-amt">${fmtMoney(catData.subs[s])}</span></div>`).join('')}
+      </div>`;
+    }).join('');
+  }
+  const overlay = document.getElementById('detailOverlay');
+  overlay.classList.add('open');
+  overlay.scrollTop = 0;
+}
+function closeTipoDetail(){
+  document.getElementById('detailOverlay').classList.remove('open');
+  detailTipoOpen = null;
+}
+
+/* =========================================================
+   AVOIDED EXPENSE ("spesa evitata")
+   ========================================================= */
+function openAvoided(tipo){
+  avoidedTipo = tipo;
+  document.getElementById('avoidedDescInput').value = '';
+  document.getElementById('avoidedAmountInput').value = '';
+  document.getElementById('avoidedTipoLabel').textContent = tipo==='personale' ? 'Personale' : 'Comune';
+  const overlay = document.getElementById('overlayAvoided');
+  overlay.classList.add('open');
+  document.getElementById('sheetAvoided').scrollTop = 0;
+}
+function closeAvoided(){ document.getElementById('overlayAvoided').classList.remove('open'); }
+function closeAvoidedIfOverlay(ev){ if(ev.target.id === 'overlayAvoided') closeAvoided(); }
+
+async function saveAvoided(){
+  const desc = document.getElementById('avoidedDescInput').value.trim();
+  const amount = parseFloat(document.getElementById('avoidedAmountInput').value);
+  if(!amount || amount <= 0){ showToast('Inserisci un importo valido'); return; }
+  avoidedSavings.push({ id: uid(), desc, amount, date: new Date().toISOString().slice(0,10), tipo: avoidedTipo });
+  settings.piggyBank[avoidedTipo] = (settings.piggyBank[avoidedTipo]||0) + amount;
+  await persistAvoided();
+  await persistSettings();
+  closeAvoided();
+  render();
+  if(currentTab==='stats') renderStats();
+  showToast('Aggiunto al salvadanaio! 🐷');
+}
+async function deleteAvoided(id){
+  const item = avoidedSavings.find(a=>a.id===id);
+  if(!item) return;
+  settings.piggyBank[item.tipo] = Math.max(0, (settings.piggyBank[item.tipo]||0) - item.amount);
+  avoidedSavings = avoidedSavings.filter(a=>a.id!==id);
+  await persistAvoided();
+  await persistSettings();
+  render();
+  renderStats();
+  showToast('Rimosso');
+}
+
+/* =========================================================
+   LIST RENDER
+   ========================================================= */
+function renderList(monthExp){
+  const list = document.getElementById('list');
+  if(monthExp.length===0){
+    list.innerHTML = `<div class="empty-list"><span class="big">🧾</span>Ancora nessuna spesa questo mese.<br>Tocca "+ Aggiungi spesa" per iniziare.</div>`;
+    return;
+  }
+  list.innerHTML = monthExp.map(e=>{
+    const c = catById(e.catId);
+    const icon = c ? c.icon : '📎';
+    const color = c ? c.color : '#8a8577';
+    const catName = c ? c.name : '—';
+    const d = new Date(e.date+'T00:00:00');
+    const dateStr = d.toLocaleDateString('it-IT', {day:'numeric', month:'short'});
+    const necInfo = NECESSITY_LEVELS.find(n=>n.id===e.necessity);
+    return `<div class="expense-item">
+      <div class="expense-icon" style="background:${color}">${icon}</div>
+      <div class="expense-mid">
+        <div class="expense-title">${escapeHtml(e.desc || catName)}
+          <span class="badge ${e.tipo==='personale'?'badge-p':'badge-c'}">${e.tipo==='personale'?'Personale':'Comune'}</span>
+          ${e.recurring ? '<span class="badge-rec" title="Ricorrente">🔁</span>' : ''}
+        </div>
+        <div class="expense-sub">
+          <span>${dateStr} · ${escapeHtml(catName)}${e.sub?(' / '+escapeHtml(e.sub)):''}</span>
+        </div>
+        <div class="expense-sub">
+          ${e.payment ? '<span>💳 '+escapeHtml(e.payment)+'</span>' : ''}
+          ${necInfo ? '<span><span class="necessity-dot nec-'+necInfo.id+'"></span>'+necInfo.label+'</span>' : ''}
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;">
+        <div class="expense-amount">${fmtMoney(e.amount)}</div>
+        <button class="expense-del" onclick="deleteExpense('${e.id}')">×</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+/* =========================================================
+   ADD EXPENSE SHEET
+   ========================================================= */
+function openAddSheet(){
+  const overlay = document.getElementById('overlayTipoFirst');
+  overlay.classList.add('open');
+  overlay.querySelector('.sheet').scrollTop = 0;
+}
+function closeTipoFirst(){ document.getElementById('overlayTipoFirst').classList.remove('open'); }
+function closeTipoFirstIfOverlay(ev){ if(ev.target.id === 'overlayTipoFirst') closeTipoFirst(); }
+
+function chooseTipoFirst(tipo){
+  selectedTipo = tipo;
+  closeTipoFirst();
+  openDetailSheet();
+}
+function backToTipoFirst(){
+  closeSheet();
+  const overlay = document.getElementById('overlayTipoFirst');
+  overlay.classList.add('open');
+  overlay.querySelector('.sheet').scrollTop = 0;
+}
+
+function openDetailSheet(){
+  document.getElementById('descInput').value = '';
+  document.getElementById('amountInput').value = '';
+  document.getElementById('dateInput').value = new Date().toISOString().slice(0,10);
+  document.getElementById('recurringCheck').checked = false;
+  selectedCatId = settings.categories[0] ? settings.categories[0].id : null;
+  selectedSub = null;
+  selectedPayment = settings.paymentMethods[0] || null;
+  selectedNecessity = 'necessaria';
+  renderCatSelect();
+  renderSubcatSelect();
+  renderPaymentSelect();
+  renderNecessitySelect();
+  const badge = document.getElementById('tipoChosenBadge');
+  badge.className = 'tipo-chosen-badge ' + (selectedTipo==='personale' ? 'badge-personale' : 'badge-comune');
+  badge.innerHTML = (selectedTipo==='personale' ? '👤 Personale' : '👥 Comune') + ' · cambia';
+  const overlay = document.getElementById('overlay');
+  overlay.classList.add('open');
+  document.getElementById('sheetAdd').scrollTop = 0;
+}
+function closeSheet(){ document.getElementById('overlay').classList.remove('open'); }
+function closeSheetIfOverlay(ev){ if(ev.target.id === 'overlay') closeSheet(); }
+
+function renderCatSelect(){
+  const wrap = document.getElementById('catSelect');
+  wrap.innerHTML = settings.categories.map(c=>
+    `<div class="pill ${c.id===selectedCatId?'active':''}" onclick="selectCat('${c.id}')">${c.icon} ${escapeHtml(c.name)}</div>`
+  ).join('');
+}
+function selectCat(id){
+  selectedCatId = id;
+  selectedSub = null;
+  renderCatSelect();
+  renderSubcatSelect();
+}
+function renderSubcatSelect(){
+  const field = document.getElementById('subcatField');
+  const wrap = document.getElementById('subcatSelect');
+  const c = catById(selectedCatId);
+  if(!c || !c.subs || c.subs.length===0){ field.style.display='none'; return; }
+  field.style.display='block';
+  if(!selectedSub) selectedSub = c.subs[0];
+  wrap.innerHTML = c.subs.map(s=>
+    `<div class="pill ${s===selectedSub?'active':''}" onclick="selectSub('${s.replace(/'/g,"\\'")}')">${escapeHtml(s)}</div>`
+  ).join('');
+}
+function selectSub(s){ selectedSub = s; renderSubcatSelect(); }
+
+function renderPaymentSelect(){
+  const wrap = document.getElementById('paymentSelect');
+  wrap.innerHTML = settings.paymentMethods.map(p=>
+    `<div class="pill ${p===selectedPayment?'active':''}" onclick="selectPayment('${p.replace(/'/g,"\\'")}')">${escapeHtml(p)}</div>`
+  ).join('');
+}
+function selectPayment(p){ selectedPayment = p; renderPaymentSelect(); }
+
+function renderNecessitySelect(){
+  const wrap = document.getElementById('necessitySelect');
+  wrap.innerHTML = NECESSITY_LEVELS.map(n=>
+    `<div class="pill ${n.id===selectedNecessity?'active':''}" onclick="selectNecessity('${n.id}')"><span class="necessity-dot nec-${n.id}"></span>${n.label}</div>`
+  ).join('');
+}
+function selectNecessity(id){ selectedNecessity = id; renderNecessitySelect(); }
+
+async function saveExpense(){
+  const desc = document.getElementById('descInput').value.trim();
+  const amount = parseFloat(document.getElementById('amountInput').value);
+  const date = document.getElementById('dateInput').value;
+  const isRecurring = document.getElementById('recurringCheck').checked;
+
+  if(!amount || amount <= 0){ showToast('Inserisci un importo valido'); return; }
+  if(!date){ showToast('Inserisci una data'); return; }
+  if(!selectedCatId){ showToast('Seleziona una categoria'); return; }
+
+  const id = uid();
+  let recurringTemplateId = null;
+
+  if(isRecurring){
+    const day = parseInt(date.slice(8,10),10);
+    const tmpl = { id: uid(), desc, amount, catId: selectedCatId, sub: selectedSub,
+      tipo: selectedTipo, payment: selectedPayment, necessity: selectedNecessity, dayOfMonth: day };
+    recurringTemplates.push(tmpl);
+    recurringTemplateId = tmpl.id;
+    await persistRecurring();
+  }
+
+  expenses.push({
+    id, desc, amount, date, catId: selectedCatId, sub: selectedSub,
+    tipo: selectedTipo, payment: selectedPayment, necessity: selectedNecessity,
+    recurring: isRecurring, recurringTemplateId
+  });
+  await persistExpenses();
+  closeSheet();
+  currentDate = new Date(date+'T00:00:00');
+  render();
+  showToast('Spesa aggiunta');
+}
+
+async function deleteExpense(id){
+  expenses = expenses.filter(e=>e.id!==id);
+  await persistExpenses();
+  render();
+  if(currentTab==='stats') renderStats();
+  showToast('Spesa eliminata');
+}
+
+/* =========================================================
+   TOAST
+   ========================================================= */
+let toastTimer;
+function showToast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=>t.classList.remove('show'), 1900);
+}
+
+/* =========================================================
+   STATISTICS
+   ========================================================= */
+function lastNMonthKeys(n){
+  const keys = [];
+  let cursor = monthKey(new Date());
+  for(let i=0;i<n;i++){ keys.unshift(cursor); cursor = addMonths(cursor,-1); }
+  return keys;
+}
+
+function renderStats(){
+  const months = lastNMonthKeys(6);
+
+  // Trend chart (total spend per month)
+  const totals = months.map(mk => expenses.filter(e=>e.date.slice(0,7)===mk).reduce((s,e)=>s+e.amount,0));
+  const maxT = Math.max(1, ...totals);
+  document.getElementById('trendChart').innerHTML = months.map((mk,i)=>{
+    const h = Math.max(2, (totals[i]/maxT)*100);
+    const lbl = new Date(mk+'-01').toLocaleDateString('it-IT',{month:'short'});
+    return `<div class="trend-col">
+      <div class="trend-value">${totals[i]>0?Math.round(totals[i]):''}</div>
+      <div class="trend-bar" style="height:${h}%; background:var(--moss);"></div>
+      <div class="trend-label">${lbl}</div>
+    </div>`;
+  }).join('');
+
+  // Personal vs common trend
+  const pcWrap = document.getElementById('pcTrend');
+  const pTotals = months.map(mk => expenses.filter(e=>e.date.slice(0,7)===mk && e.tipo==='personale').reduce((s,e)=>s+e.amount,0));
+  const cTotals = months.map(mk => expenses.filter(e=>e.date.slice(0,7)===mk && e.tipo==='comune').reduce((s,e)=>s+e.amount,0));
+  const maxPC = Math.max(1, ...pTotals, ...cTotals);
+  pcWrap.innerHTML = months.map((mk,i)=>{
+    const lbl = new Date(mk+'-01').toLocaleDateString('it-IT',{month:'short'});
+    const pPct = (pTotals[i]/maxPC*100), cPct = (cTotals[i]/maxPC*100);
+    return `<div class="hbar-row">
+      <div class="hbar-label-row"><span style="text-transform:capitalize;">${lbl}</span><span>${fmtMoney(pTotals[i])} · ${fmtMoney(cTotals[i])}</span></div>
+      <div class="hbar-track" style="margin-bottom:3px;"><div class="hbar-seg" style="width:${pPct}%; background:var(--moss);"></div></div>
+      <div class="hbar-track"><div class="hbar-seg" style="width:${cPct}%; background:var(--gold);"></div></div>
+    </div>`;
+  }).join('') + `<div class="stacked-legend"><span><span class="legend-dot" style="background:var(--moss);"></span>Personale</span><span><span class="legend-dot" style="background:var(--gold);"></span>Comune</span></div>`;
+
+  // Category breakdown current month
+  const curKey = monthKey(currentDate);
+  const curExp = expenses.filter(e=>e.date.slice(0,7)===curKey);
+  const byCat = {};
+  curExp.forEach(e=>{ byCat[e.catId] = (byCat[e.catId]||0)+e.amount; });
+  const catKeys = Object.keys(byCat).sort((a,b)=>byCat[b]-byCat[a]);
+  const totalCur = curExp.reduce((s,e)=>s+e.amount,0);
+  const catStatsEl = document.getElementById('catStats');
+  if(catKeys.length===0){ catStatsEl.innerHTML = '<div class="empty-stats">Nessuna spesa nel mese selezionato.</div>'; }
+  else {
+    catStatsEl.innerHTML = catKeys.map(k=>{
+      const c = catById(k);
+      const pct = totalCur>0 ? (byCat[k]/totalCur*100) : 0;
+      return `<div class="hbar-row">
+        <div class="hbar-label-row"><span>${c?c.icon:''} ${c?escapeHtml(c.name):'—'}</span><span>${fmtMoney(byCat[k])} (${Math.round(pct)}%)</span></div>
+        <div class="hbar-track"><div class="hbar-seg" style="width:${pct}%; background:${c?c.color:'#999'};"></div></div>
+      </div>`;
+    }).join('');
+  }
+
+  // Necessity breakdown
+  const necEl = document.getElementById('necStats');
+  const necTotals = {};
+  NECESSITY_LEVELS.forEach(n=>necTotals[n.id]=0);
+  curExp.forEach(e=>{ if(e.necessity) necTotals[e.necessity] = (necTotals[e.necessity]||0) + e.amount; });
+  const necSum = Object.values(necTotals).reduce((a,b)=>a+b,0);
+  if(necSum===0){ necEl.innerHTML = '<div class="empty-stats">Nessun dato disponibile.</div>'; }
+  else {
+    necEl.innerHTML = `<div class="hbar-track" style="height:20px;">
+      ${NECESSITY_LEVELS.map(n=>`<div class="hbar-seg" style="width:${(necTotals[n.id]/necSum*100)}%; background:${n.color};"></div>`).join('')}
+    </div>
+    <div class="stacked-legend">${NECESSITY_LEVELS.map(n=>`<span><span class="legend-dot" style="background:${n.color};"></span>${n.label}: ${fmtMoney(necTotals[n.id])}</span>`).join('')}</div>`;
+  }
+
+  // Fuel comparison (Trasporti subcategories)
+  const fuelEl = document.getElementById('fuelStats');
+  const trasportiExp = expenses.filter(e=>e.catId==='trasporti');
+  const diesel = trasportiExp.filter(e=>e.sub==='Diesel').reduce((s,e)=>s+e.amount,0);
+  const benzGpl = trasportiExp.filter(e=>e.sub==='Benzina'||e.sub==='GPL').reduce((s,e)=>s+e.amount,0);
+  const fuelMax = Math.max(1, diesel, benzGpl);
+  if(diesel===0 && benzGpl===0){ fuelEl.innerHTML = '<div class="empty-stats">Nessuna spesa di carburante registrata.</div>'; }
+  else {
+    fuelEl.innerHTML = `
+      <div class="hbar-row"><div class="hbar-label-row"><span>⛽ Benzina + GPL</span><span>${fmtMoney(benzGpl)}</span></div>
+        <div class="hbar-track"><div class="hbar-seg" style="width:${benzGpl/fuelMax*100}%; background:var(--moss);"></div></div></div>
+      <div class="hbar-row"><div class="hbar-label-row"><span>🛢️ Diesel</span><span>${fmtMoney(diesel)}</span></div>
+        <div class="hbar-track"><div class="hbar-seg" style="width:${diesel/fuelMax*100}%; background:var(--clay);"></div></div></div>
+      <p style="font-size:11px;color:var(--muted);margin-top:4px;">Dato calcolato su tutto lo storico registrato.</p>`;
+  }
+
+  // Payment methods current month
+  const payEl = document.getElementById('paymentStats');
+  const byPay = {};
+  curExp.forEach(e=>{ const p=e.payment||'Non specificato'; byPay[p]=(byPay[p]||0)+e.amount; });
+  const payKeys = Object.keys(byPay).sort((a,b)=>byPay[b]-byPay[a]);
+  if(payKeys.length===0){ payEl.innerHTML = '<div class="empty-stats">Nessun dato disponibile.</div>'; }
+  else {
+    const maxPay = Math.max(...payKeys.map(k=>byPay[k]));
+    payEl.innerHTML = payKeys.map(k=>`<div class="hbar-row">
+      <div class="hbar-label-row"><span>${escapeHtml(k)}</span><span>${fmtMoney(byPay[k])}</span></div>
+      <div class="hbar-track"><div class="hbar-seg" style="width:${byPay[k]/maxPay*100}%; background:var(--gold);"></div></div>
+    </div>`).join('');
+  }
+
+  // Piggy bank stats
+  const piggyEl = document.getElementById('piggyStats');
+  let avoidedHtml = '';
+  if(avoidedSavings.length > 0){
+    const sortedAvoided = avoidedSavings.slice().sort((a,b)=>b.date.localeCompare(a.date));
+    avoidedHtml = `<p style="font-size:11px;color:var(--muted);margin-top:14px;margin-bottom:4px;">Spese evitate registrate:</p>` +
+      sortedAvoided.map(a=>`<div class="avoided-list-item">
+        <span>🙅 ${escapeHtml(a.desc||'—')} <span style="color:var(--muted);">(${a.tipo==='personale'?'Personale':'Comune'})</span></span>
+        <span style="display:flex;align-items:center;gap:8px;">${fmtMoney(a.amount)}<button class="expense-del" style="font-size:15px;" onclick="deleteAvoided('${a.id}')">×</button></span>
+      </div>`).join('');
+  }
+  piggyEl.innerHTML = `
+    <div class="hbar-row"><div class="hbar-label-row"><span>🐷 Personale</span><span>${fmtMoney(settings.piggyBank.personale||0)}</span></div></div>
+    <div class="hbar-row"><div class="hbar-label-row"><span>🐷 Comune</span><span>${fmtMoney(settings.piggyBank.comune||0)}</span></div></div>
+    <p style="font-size:11px;color:var(--muted);">Calcolato automaticamente dai mesi passati completati, più le spese evitate registrate.</p>
+    ${avoidedHtml}`;
+}
+
+/* =========================================================
+   EXCEL EXPORT
+   ========================================================= */
+function exportExcel(){
+  if(expenses.length===0){ showToast('Nessuna spesa da esportare'); return; }
+  const rows = expenses
+    .slice()
+    .sort((a,b)=>a.date.localeCompare(b.date))
+    .map(e=>{
+      const c = catById(e.catId);
+      return {
+        'Data': e.date,
+        'Descrizione': e.desc || '',
+        'Importo (€)': e.amount,
+        'Categoria': c ? c.name : '',
+        'Sottocategoria': e.sub || '',
+        'Tipo': e.tipo==='personale' ? 'Personale' : 'Comune',
+        'Metodo di pagamento': e.payment || '',
+        'Necessità': (NECESSITY_LEVELS.find(n=>n.id===e.necessity)||{}).label || '',
+        'Ricorrente': e.recurring ? 'Sì' : 'No'
+      };
+    });
+  const ws = XLSX.utils.json_to_sheet(rows);
+  ws['!cols'] = [{wch:11},{wch:28},{wch:11},{wch:16},{wch:20},{wch:11},{wch:18},{wch:13},{wch:10}];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Spese');
+  XLSX.writeFile(wb, 'spese_export.xlsx');
+  showToast('Export avviato');
+}
+
+/* =========================================================
+   SETTINGS RENDER
+   ========================================================= */
+function renderSettings(){
+  document.getElementById('budgetPersonaleInput').value = settings.budgets.personale || '';
+  document.getElementById('budgetComuneInput').value = settings.budgets.comune || '';
+  document.getElementById('goalPersonaleName').value = settings.goals.personale.name || '';
+  document.getElementById('goalPersonaleTarget').value = settings.goals.personale.target || '';
+  document.getElementById('goalComuneName').value = settings.goals.comune.name || '';
+  document.getElementById('goalComuneTarget').value = settings.goals.comune.target || '';
+
+  // Category budgets (due colonne: Personale / Comune)
+  const cbWrap = document.getElementById('catBudgetList');
+  cbWrap.innerHTML = settings.categories.map(c => {
+    const cb = settings.budgets.categorie[c.id] || {};
+    return `
+    <div class="cat-budget-row">
+      <label>${c.icon} ${escapeHtml(c.name)}</label>
+      <input type="number" min="0" step="1" value="${cb.personale||''}" placeholder="—"
+        onchange="setCatBudget('${c.id}', 'personale', this.value)">
+      <input type="number" min="0" step="1" value="${cb.comune||''}" placeholder="—"
+        onchange="setCatBudget('${c.id}', 'comune', this.value)">
+    </div>`;
+  }).join('');
+
+  // Categories & subcategories management
+  const catWrap = document.getElementById('catSettingsList');
+  catWrap.innerHTML = settings.categories.map(c => `
+    <div class="cat-settings-card">
+      <div class="cat-settings-head">
+        <div class="cat-icon" style="background:${c.color}">${c.icon}</div>
+        <div style="flex:1;">${escapeHtml(c.name)}</div>
+        <button class="small-link" onclick="deleteCategory('${c.id}')">Elimina</button>
+      </div>
+      <div class="subchip-row">
+        ${c.subs.map(s=>`<div class="subchip">${escapeHtml(s)}<button onclick="deleteSub('${c.id}','${s.replace(/'/g,"\\'")}')">×</button></div>`).join('')}
+      </div>
+      <div class="inline-add">
+        <input type="text" id="newsub_${c.id}" placeholder="Nuova sottocategoria...">
+        <button onclick="addSub('${c.id}')">+</button>
+      </div>
+    </div>`).join('');
+
+  // Payment methods
+  const payWrap = document.getElementById('paymentSettingsList');
+  payWrap.innerHTML = settings.paymentMethods.map(p => `
+    <div class="list-item-row"><span>${escapeHtml(p)}</span><button class="small-link" onclick="deletePaymentMethod('${p.replace(/'/g,"\\'")}')">Elimina</button></div>
+  `).join('');
+
+  // Recurring templates
+  const recWrap = document.getElementById('recurringList');
+  if(recurringTemplates.length===0){
+    recWrap.innerHTML = '<div class="empty-stats">Nessuna spesa ricorrente impostata. Spuntala quando aggiungi una spesa.</div>';
+  } else {
+    recWrap.innerHTML = recurringTemplates.map(t=>{
+      const c = catById(t.catId);
+      return `<div class="list-item-row">
+        <span>${c?c.icon:''} ${escapeHtml(t.desc||c?.name||'')} · ${fmtMoney(t.amount)} (giorno ${t.dayOfMonth})</span>
+        <button class="small-link" onclick="deleteRecurring('${t.id}')">Elimina</button>
+      </div>`;
+    }).join('');
+  }
+}
+
+async function saveBudgetsSettings(){
+  settings.budgets.personale = parseFloat(document.getElementById('budgetPersonaleInput').value) || 0;
+  settings.budgets.comune = parseFloat(document.getElementById('budgetComuneInput').value) || 0;
+  await persistSettings();
+  render();
+  showToast('Budget aggiornati');
+}
+async function saveGoalsSettings(){
+  settings.goals.personale.name = document.getElementById('goalPersonaleName').value.trim();
+  settings.goals.personale.target = parseFloat(document.getElementById('goalPersonaleTarget').value) || 0;
+  settings.goals.comune.name = document.getElementById('goalComuneName').value.trim();
+  settings.goals.comune.target = parseFloat(document.getElementById('goalComuneTarget').value) || 0;
+  await persistSettings();
+  render();
+  showToast('Obiettivi aggiornati');
+}
+async function setCatBudget(catId, tipo, val){
+  const num = parseFloat(val);
+  if(!settings.budgets.categorie[catId]) settings.budgets.categorie[catId] = {};
+  if(num > 0) settings.budgets.categorie[catId][tipo] = num;
+  else delete settings.budgets.categorie[catId][tipo];
+  if(!settings.budgets.categorie[catId].personale && !settings.budgets.categorie[catId].comune){
+    delete settings.budgets.categorie[catId];
+  }
+  await persistSettings();
+  render();
+}
+
+async function addCategory(){
+  const input = document.getElementById('newCatName');
+  const name = input.value.trim();
+  if(!name) return;
+  const id = 'cat_' + uid();
+  settings.categories.push({ id, name, icon:'📎', color:'#8a8577', subs:['Altro'] });
+  input.value = '';
+  await persistSettings();
+  renderSettings();
+  showToast('Categoria aggiunta');
+}
+async function deleteCategory(id){
+  settings.categories = settings.categories.filter(c=>c.id!==id);
+  delete settings.budgets.categorie[id];
+  await persistSettings();
+  renderSettings();
+  showToast('Categoria eliminata');
+}
+async function addSub(catId){
+  const input = document.getElementById('newsub_'+catId);
+  const name = input.value.trim();
+  if(!name) return;
+  const c = catById(catId);
+  const idx = c.subs.indexOf('Altro');
+  if(idx>=0) c.subs.splice(idx,0,name); else c.subs.push(name);
+  input.value = '';
+  await persistSettings();
+  renderSettings();
+}
+async function deleteSub(catId, sub){
+  const c = catById(catId);
+  c.subs = c.subs.filter(s=>s!==sub);
+  await persistSettings();
+  renderSettings();
+}
+
+async function addPaymentMethod(){
+  const input = document.getElementById('newPaymentName');
+  const name = input.value.trim();
+  if(!name) return;
+  settings.paymentMethods.push(name);
+  input.value = '';
+  await persistSettings();
+  renderSettings();
+  showToast('Metodo aggiunto');
+}
+async function deletePaymentMethod(name){
+  settings.paymentMethods = settings.paymentMethods.filter(p=>p!==name);
+  await persistSettings();
+  renderSettings();
+}
+
+async function deleteRecurring(id){
+  recurringTemplates = recurringTemplates.filter(t=>t.id!==id);
+  expenses = expenses.map(e => e.recurringTemplateId===id ? {...e, recurring:false, recurringTemplateId:null} : e);
+  await persistRecurring();
+  await persistExpenses();
+  renderSettings();
+  showToast('Spesa ricorrente eliminata');
+}
+
+/* =========================================================
+   INIT
+   ========================================================= */
+loadData();
+</script>
+</body>
+</html>
