@@ -11,6 +11,9 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#3d5a45">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore-compat.js"></script>
 <style>
   :root{
     --ink:#1f2a24;
@@ -241,7 +244,7 @@
       <div>
         <p class="brand">Garage Diario</p>
         <h1>Golf &amp; Kuga</h1>
-        <p class="app-version">Versione 1.1</p>
+        <p class="app-version">Versione 1.2</p>
       </div>
       <img class="header-logo" src="" id="headerLogo" alt="">
     </div>
@@ -656,11 +659,86 @@ async function loadData(){
   await persistAll();
   render();
 }
-async function persistVehicles(){ try{ localStorage.setItem(VEH_KEY, JSON.stringify(vehicles)); }catch(e){ showToast('Errore nel salvataggio'); } }
-async function persistInterventi(){ try{ localStorage.setItem(INT_KEY, JSON.stringify(interventi)); }catch(e){ showToast('Errore nel salvataggio'); } }
-async function persistSettings(){ try{ localStorage.setItem(SET_KEY, JSON.stringify(settings)); }catch(e){ showToast('Errore nel salvataggio'); } }
+async function persistVehicles(){ try{ localStorage.setItem(VEH_KEY, JSON.stringify(vehicles)); }catch(e){ showToast('Errore nel salvataggio'); } pushCloud(); }
+async function persistInterventi(){ try{ localStorage.setItem(INT_KEY, JSON.stringify(interventi)); }catch(e){ showToast('Errore nel salvataggio'); } pushCloud(); }
+async function persistSettings(){ try{ localStorage.setItem(SET_KEY, JSON.stringify(settings)); }catch(e){ showToast('Errore nel salvataggio'); } pushCloud(); }
 async function persistLibretti(){ try{ localStorage.setItem(LIB_KEY, JSON.stringify(libretti)); }catch(e){ showToast('Errore nel salvataggio del documento (spazio insufficiente)'); } }
 async function persistAll(){ await persistVehicles(); await persistInterventi(); await persistSettings(); await persistLibretti(); }
+
+/* =========================================================
+   SINCRONIZZAZIONE CLOUD (Firebase) — auto, interventi, settings
+   Foto e PDF (Carta di Circolazione) restano locali al dispositivo.
+   ========================================================= */
+const firebaseConfig = {
+  apiKey: "AIzaSyCwEeSX9t6JVwL2cF5PL1WBZvCiBDQGnxw",
+  authDomain: "garage-diario.firebaseapp.com",
+  projectId: "garage-diario",
+  storageBucket: "garage-diario.firebasestorage.app",
+  messagingSenderId: "439843963582",
+  appId: "1:439843963582:web:b8afd79424dba0ac0654ef"
+};
+let cloudDb = null;
+let cloudDocRef = null;
+let cloudReady = false;
+let applyingRemoteUpdate = false;
+
+function initCloudSync(){
+  try{
+    firebase.initializeApp(firebaseConfig);
+    cloudDb = firebase.firestore();
+    firebase.auth().onAuthStateChanged(user=>{
+      if(user){
+        cloudDocRef = cloudDb.collection('garages').doc('main');
+        cloudReady = true;
+        listenCloud();
+      }
+    });
+    firebase.auth().signInAnonymously().catch(err=>{
+      console.warn('Sincronizzazione non disponibile:', err);
+    });
+  }catch(err){
+    console.warn('Sincronizzazione cloud non disponibile:', err);
+  }
+}
+
+function listenCloud(){
+  cloudDocRef.onSnapshot(async (snap)=>{
+    if(!snap.exists){
+      await pushCloud();
+      return;
+    }
+    const data = snap.data();
+    if(!data) return;
+    applyingRemoteUpdate = true;
+    if(data.vehicles) vehicles = data.vehicles;
+    if(data.interventi) interventi = data.interventi;
+    if(data.settings) settings = data.settings;
+    try{ localStorage.setItem(VEH_KEY, JSON.stringify(vehicles)); }catch(e){}
+    try{ localStorage.setItem(INT_KEY, JSON.stringify(interventi)); }catch(e){}
+    try{ localStorage.setItem(SET_KEY, JSON.stringify(settings)); }catch(e){}
+    applyingRemoteUpdate = false;
+    refreshAllViews();
+  }, err=>{
+    console.warn('Errore ricezione sincronizzazione:', err);
+  });
+}
+
+async function pushCloud(){
+  if(!cloudReady || !cloudDocRef || applyingRemoteUpdate) return;
+  try{
+    await cloudDocRef.set({ vehicles, interventi, settings, updatedAt: Date.now() });
+  }catch(err){
+    console.warn('Errore invio sincronizzazione:', err);
+  }
+}
+
+function refreshAllViews(){
+  render();
+  if(currentTab==='scadenze') renderScadenzeGlobal();
+  if(currentTab==='stats') renderStats();
+  if(currentTab==='settings') renderSettings();
+  if(openVehicleId) renderHubBody();
+}
 
 /* =========================================================
    DEADLINE ENGINE
@@ -1628,6 +1706,7 @@ async function confirmExcelImport(){
    ========================================================= */
 document.getElementById('headerLogo').src = BRAND_LOGO;
 loadData();
+initCloudSync();
 </script>
 </body>
 </html>
