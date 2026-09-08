@@ -455,10 +455,6 @@
     <div class="settings-block">
       <h3>Sincronizzazione famiglia</h3>
       <div class="field">
-        <label>Codice famiglia (lo stesso di Garage Diario)</label>
-        <input type="text" id="familyCodeInput" placeholder="Es. ABC123">
-      </div>
-      <div class="field">
         <label>Il tuo nome</label>
         <input type="text" id="myNameInput" placeholder="Es. Francesco">
       </div>
@@ -467,7 +463,7 @@
       </div>
       <p id="syncStatusText" style="font-size:11.5px;color:var(--muted);margin-top:10px;"></p>
       <p style="font-size:11px;color:var(--muted);margin-top:8px;">
-        Le spese <b>Comuni</b> si sincronizzano con chiunque usi lo stesso codice famiglia. Le spese <b>Personali</b> si sincronizzano solo tra i tuoi dispositivi con lo stesso nome (es. il tuo telefono e il tuo PC), restando invisibili agli altri.
+        Le spese <b>Comuni</b> si sincronizzano in automatico con tutta la famiglia. Le spese <b>Personali</b> si sincronizzano solo tra i tuoi dispositivi con lo stesso nome (es. il tuo telefono e il tuo PC), restando invisibili agli altri.
       </p>
     </div>
     <div class="settings-block">
@@ -855,7 +851,7 @@ const FIREBASE_CONFIG = {
   appId: "1:439843963582:web:b8afd79424dba0ac0654ef"
 };
 let fbApp = null, fbDb = null;
-let familyCode = localStorage.getItem('sync:familyCode') || '';
+const FAMILY_CODE = 'main'; // percorso fisso, come Garage Diario — nessun codice da inserire
 let myName = localStorage.getItem('sync:myName') || '';
 let syncEnabled = false;
 let syncStatus = 'disconnesso'; // disconnesso | connessione... | sincronizzato | errore
@@ -896,7 +892,7 @@ function nameSlug(name){
 }
 
 async function initSync(){
-  if(!familyCode || !myName){ syncStatus = 'disconnesso'; renderSyncStatus(); return; }
+  if(!myName){ syncStatus = 'disconnesso'; renderSyncStatus(); return; }
   syncStatus = 'connessione...';
   renderSyncStatus();
   try{
@@ -908,8 +904,8 @@ async function initSync(){
       await firebase.auth().signInAnonymously();
     }
     const slug = nameSlug(myName);
-    comuneDocRef = fbDb.collection('spese_famiglie').doc(familyCode).collection('comune').doc('data');
-    personaleDocRef = fbDb.collection('spese_famiglie').doc(familyCode).collection('personale_'+slug).doc('data');
+    comuneDocRef = fbDb.collection('spese_famiglie').doc(FAMILY_CODE).collection('comune').doc('data');
+    personaleDocRef = fbDb.collection('spese_famiglie').doc(FAMILY_CODE).collection('personale_'+slug).doc('data');
 
     if(unsubComune) unsubComune();
     if(unsubPersonale) unsubPersonale();
@@ -1043,11 +1039,9 @@ async function pushPersonaleToCloud(){
 }
 
 async function saveSyncSettings(){
-  const code = document.getElementById('familyCodeInput').value.trim();
   const name = document.getElementById('myNameInput').value.trim();
-  if(!code || !name){ showToast('Inserisci codice famiglia e il tuo nome'); return; }
-  familyCode = code; myName = name;
-  localStorage.setItem('sync:familyCode', familyCode);
+  if(!name){ showToast('Inserisci il tuo nome'); return; }
+  myName = name;
   localStorage.setItem('sync:myName', myName);
   await initSync();
   showToast('Sincronizzazione attivata');
@@ -2157,7 +2151,6 @@ function handleImportFile(event){
    SETTINGS RENDER
    ========================================================= */
 function renderSettings(){
-  document.getElementById('familyCodeInput').value = familyCode;
   document.getElementById('myNameInput').value = myName;
   renderSyncStatus();
 
