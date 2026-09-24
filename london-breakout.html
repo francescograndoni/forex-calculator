@@ -116,7 +116,7 @@ input.inp-yellow-sm::placeholder{color:rgba(0,0,0,0.28);font-weight:400;font-siz
 /* SAVE BAR */
 .save-bar{background:var(--bg-panel);border:1px solid var(--border-panel);border-radius:var(--radius);padding:1.25rem 1.5rem;margin-bottom:1.25rem}
 .save-bar-title{font-size:11px;font-weight:700;color:var(--text-muted2);text-transform:uppercase;letter-spacing:.1em;margin-bottom:1rem}
-.save-row{display:grid;grid-template-columns:1fr 1fr 1fr auto auto auto;gap:10px;align-items:end}
+.save-row{display:grid;grid-template-columns:1fr 1fr 1fr auto auto auto auto auto;gap:10px;align-items:end}
 .save-field{display:flex;flex-direction:column;gap:5px}
 .save-field label{font-size:11px;font-weight:700;color:var(--text-muted2);text-transform:uppercase;letter-spacing:.08em}
 
@@ -124,6 +124,10 @@ input.inp-yellow-sm::placeholder{color:rgba(0,0,0,0.28);font-weight:400;font-siz
 .btn:active{transform:scale(.97)}
 .btn-save{background:var(--orange);color:#fff}
 .btn-save:hover{opacity:.88}
+.btn-demo{background:#155f94;color:#fff}
+.btn-demo:hover{opacity:.88}
+.btn-forzato{background:#8d4a12;color:#fff}
+.btn-forzato:hover{opacity:.88}
 .btn-export{background:var(--green);color:#fff}
 .btn-export:hover{opacity:.88}
 .btn-import{background:#2c5f7a;color:#fff}
@@ -616,6 +620,7 @@ input.price-spinner{font-variant-numeric:tabular-nums}
 .mode-badge{display:inline-flex;align-items:center;border-radius:10px;padding:3px 8px;font-size:10px;font-weight:950;white-space:nowrap}
 .mode-core{background:rgba(93,187,75,.18);color:#78d66a;border:1px solid rgba(93,187,75,.35)}
 .mode-demo{background:rgba(224,120,32,.18);color:#ffad5f;border:1px solid rgba(224,120,32,.38)}
+.mode-studio{background:rgba(21,95,148,.18);color:#74c7ff;border:1px solid rgba(21,95,148,.38)}
 .forward-stats{margin:0 0 1rem;background:var(--bg-panel);border:1px solid var(--border-panel);border-radius:var(--radius);overflow:hidden}
 .forward-stats-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 14px;background:var(--bg-panel-deep);border-bottom:1px solid var(--border-panel)}
 .forward-stats-title{font-size:13px;font-weight:950;color:var(--text-strong)}
@@ -682,11 +687,12 @@ input.price-spinner{font-variant-numeric:tabular-nums}
 
   <div class="forward-stats">
     <div class="forward-stats-head">
-      <span class="forward-stats-title">Statistiche forward · Setup Validato / Forzati</span>
+      <span class="forward-stats-title">Statistiche forward · Setup Validato / Forzati / Demo</span>
       <div class="stats-tabs">
         <button class="stats-tab active" id="stats-tab-core" type="button" onclick="setStatsMode('Core')">Setup Validato</button>
         <button class="stats-tab" id="stats-tab-forzato" type="button" onclick="setStatsMode('Forzato')">Forzati</button>
-        <button class="stats-tab" id="stats-tab-combined" type="button" onclick="setStatsMode('Combined')">Validato + Forzati</button>
+        <button class="stats-tab" id="stats-tab-demo" type="button" onclick="setStatsMode('Demo')">Demo</button>
+        <button class="stats-tab" id="stats-tab-combined" type="button" onclick="setStatsMode('Combined')">Tutto</button>
       </div>
     </div>
     <div class="forward-stats-grid">
@@ -824,7 +830,9 @@ input.price-spinner{font-variant-numeric:tabular-nums}
       <div class="save-field"><label>Data</label><input class="inp-yellow" type="date" id="trade-date"></div>
       <div class="save-field"><label>EUR/USD direzione</label><select class="inp-yellow" id="eur-dir"><option value="">— non salvare —</option><option value="notrade">No trade / osservazione</option><option value="buy">Buy</option><option value="sell">Sell</option></select></div>
       <div class="save-field"><label>GBP/USD direzione</label><select class="inp-yellow" id="gbp-dir"><option value="">— non salvare —</option><option value="notrade">No trade / osservazione</option><option value="buy">Buy</option><option value="sell">Sell</option></select></div>
-      <div class="save-field"><label>&nbsp;</label><button class="btn btn-save" onclick="saveTrade()">+ Salva trade</button></div>
+      <div class="save-field"><label>&nbsp;</label><button class="btn btn-save" onclick="saveTrade('Core')">Salva Setup Validato</button></div>
+      <div class="save-field"><label>&nbsp;</label><button class="btn btn-demo" onclick="saveTrade('Demo')">Salva Setup Demo</button></div>
+      <div class="save-field"><label>&nbsp;</label><button class="btn btn-forzato" onclick="saveTrade('Forzato')">Salva Setup Forzato</button></div>
       <div class="save-field"><label>&nbsp;</label><button class="btn btn-export" onclick="exportXLS()">&#8595; Esporta Excel</button></div>
       <div class="save-field"><label>&nbsp;</label><button class="btn btn-import" onclick="document.getElementById('import-file').click()">&#8593; Importa Excel</button><input type="file" id="import-file" accept=".xls,.xlsx,.html,.htm" style="display:none" onchange="importXLS(this)"></div>
     </div>
@@ -1893,11 +1901,13 @@ function setDemoBuy(enabled){
 }
 function tradeMode(t){
   const m=t&&t.modalita?t.modalita:(t&&t.coppia==="GBPUSD"?"Forzato":"Core");
-  return m==="Demo"?"Forzato":m;
+  return m;
 }
 function modeBadge(t){
   const m=tradeMode(t);
-  return `<span class="mode-badge ${m==="Forzato"?"mode-demo":"mode-core"}">${m}</span>`;
+  const label=m==="Core"?"Setup Validato":(m==="Demo"?"Demo":"Forzato");
+  const cls=m==="Core"?"mode-core":(m==="Demo"?"mode-studio":"mode-demo");
+  return `<span class="mode-badge ${cls}">${label}</span>`;
 }
 
 function emptyOrders(){const rows=["Gestione","Size Target","Entry","SL","TP","Guadagno/Rischio"].map(l=>`<div class="order-row"><span class="order-row-label">${l}</span><span class="order-row-val val-empty">—</span></div>`).join("");return`<div class="order-col"><div class="order-label-title sell-title">&#9660; SELL STOP</div>${rows}</div><div class="order-col"><div class="order-label-title buy-title">&#9650; BUY STOP</div>${rows}</div>`;}
@@ -2587,7 +2597,9 @@ function gbpNoTradeReason(d){
   return "NO TRADE manuale: Setup Validato ma non eseguito.";
 }
 
-function saveTrade(){
+function saveTrade(mode){
+  const saveMode=["Core","Demo","Forzato"].includes(mode)?mode:"Core";
+  const saveModeLabel=saveMode==="Core"?"Setup Validato":("Setup "+saveMode);
   const date=document.getElementById("trade-date").value||today();
   const eurChoice=document.getElementById("eur-dir").value;
   const gbpChoice=document.getElementById("gbp-dir").value;
@@ -2596,7 +2608,7 @@ function saveTrade(){
   const eurDir=eurNoTrade?"":eurChoice;
   const gbpDir=gbpNoTrade?"":gbpChoice;
   if(!eurDir&&!gbpDir&&!eurNoTrade&&!gbpNoTrade){
-    alert("Seleziona almeno una direzione o una osservazione NO TRADE da salvare.");
+    alert("Seleziona almeno una direzione o una osservazione NO TRADE da salvare come "+saveModeLabel+".");
     return;
   }
   if(!coreLocked){alert("Prima di salvare un trade devi premere 'Blocca range / ordini'. In questo modo Size, Entry, SL e TP iniziali vengono congelati prima della gestione in-trade.");return;}
@@ -2630,25 +2642,31 @@ function saveTrade(){
   if(eurDir){
     const st=eurCoreStatus();
     const coreAllowed=eurDir==="buy"?st.buyAllowed:st.sellAllowed;
-    const demoEnabled=eurDir==="buy"?demoBuyEnabled:demoSellEnabled;
     const demoEligible=eurDemoEligible(st,eurDir);
-    if(!coreAllowed&&!(demoEnabled&&demoEligible)){
-      if(st.londonValuesPresent&&!st.londonOrderOk){
-        alert("EURUSD: London High deve essere maggiore di London Low.");return;
-      }
-      if(demoEligible){
-        alert("EURUSD "+eurDir.toUpperCase()+" FUORI SETUP: "+eurDemoReason(st,eurDir)+". Se vuoi seguirlo, abilita prima Forzato nel riquadro "+eurDir.toUpperCase()+".");return;
-      }
-      if(eurDir==="sell"&&st.setupReady&&!st.sellAllowed){
-        alert("EURUSD SELL FUORI SETUP: London Low non shared entro 4 pip con Asia e/o Frankfurt. Se vuoi seguirlo fuori Setup, abilita prima Forzato nel riquadro SELL.");return;
-      }
-      alert("EURUSD Setup Validato v1.1: "+eurCoreReason(st));return;
+    if(st.londonValuesPresent&&!st.londonOrderOk){
+      alert("EURUSD: London High deve essere maggiore di London Low.");return;
+    }
+    if(saveMode==="Core"&&!coreAllowed){
+      alert("EURUSD "+eurDir.toUpperCase()+": non è un Setup Validato. Regola bloccante: "+eurCoreReason(st)+". Usa Salva Setup Demo oppure Salva Setup Forzato se vuoi archiviarlo fuori setup.");
+      return;
+    }
+    if(saveMode==="Forzato"&&coreAllowed){
+      alert("EURUSD "+eurDir.toUpperCase()+": questo è già un Setup Validato. Usa Salva Setup Validato per non sporcare le statistiche dei Forzati.");
+      return;
+    }
+    if(saveMode==="Forzato"&&!coreAllowed&&!demoEligible){
+      alert("EURUSD "+eurDir.toUpperCase()+": non è salvabile come Forzato. Regola bloccante: "+eurCoreReason(st)+". Se vuoi solo studiarlo, usa Salva Setup Demo.");
+      return;
     }
   }
   if(gbpDir&&calc.gbp){
-    const gbpForced=(gbpDir==="buy"&&!calc.gbp.buyAllowed&&gbpForceBuyEnabled)||(gbpDir==="sell"&&!calc.gbp.sellAllowed&&gbpForceSellEnabled);
-    if((gbpDir==="buy"&&!calc.gbp.buyAllowed&&!gbpForced)||(gbpDir==="sell"&&!calc.gbp.sellAllowed&&!gbpForced)){
-      alert("GBPUSD "+gbpDir.toUpperCase()+": "+plainText(gbpCoreReason(calc.gbp,gbpDir))+". Se vuoi seguirlo fuori Setup, spunta prima 'Forza "+gbpDir.toUpperCase()+"'.");
+    const gbpAllowed=gbpDir==="buy"?calc.gbp.buyAllowed:calc.gbp.sellAllowed;
+    if(saveMode==="Core"&&!gbpAllowed){
+      alert("GBPUSD "+gbpDir.toUpperCase()+": non è un Setup Validato. Regola bloccante: "+plainText(gbpCoreReason(calc.gbp,gbpDir))+". Usa Salva Setup Demo oppure Salva Setup Forzato.");
+      return;
+    }
+    if(saveMode==="Forzato"&&gbpAllowed){
+      alert("GBPUSD "+gbpDir.toUpperCase()+": questo è già un Setup Validato. Usa Salva Setup Validato per non sporcare le statistiche dei Forzati.");
       return;
     }
   }
@@ -2695,7 +2713,7 @@ function saveTrade(){
       sharedFra:pairKey==="eur"?eurStatus.sharedFra:null,
       distAsiaLow:pairKey==="eur"?eurStatus.distAsiaLow:null,
       distFraLow:pairKey==="eur"?eurStatus.distFraLow:null,
-      modalita:"Core",coreAmmesso:false,noTradeObservation:true,
+      modalita:saveMode,coreAmmesso:false,noTradeObservation:true,
       gbpRangeExtra:pairKey==="gbp"&&d?Math.max(0,r2(d.rangePip-GBP_CORE_RULES.maxRange)):null,
       gbpAsiaHighOut:pairKey==="gbp"&&d?r2(gbpAsiaDeviation(d).highOut):null,
       gbpAsiaLowOut:pairKey==="gbp"&&d?r2(gbpAsiaDeviation(d).lowOut):null,
@@ -2707,7 +2725,9 @@ function saveTrade(){
   function build(dir,d,coppia,high,low,pv,spreadPip,pairKey){
     const pairRisk=pairRiskPct(pairKey);
     if(pairKey==="gbp"&&d.gbpCore){
-      const forced=(dir==="buy"&&!d.buyAllowed&&gbpForceBuyEnabled)||(dir==="sell"&&!d.sellAllowed&&gbpForceSellEnabled);
+      const saveAsDemo=saveMode==="Demo";
+      const forced=saveMode==="Forzato"||(dir==="buy"&&!d.buyAllowed&&gbpForceBuyEnabled)||(dir==="sell"&&!d.sellAllowed&&gbpForceSellEnabled);
+      const modalita=saveAsDemo?"Demo":(forced?"Forzato":"Core");
       const effectivePlan=gbpForcedPlan(d,dir,pv);
       if(!effectivePlan.validSize){
         alert("GBPUSD "+dir.toUpperCase()+": inserisci almeno una size > 0.");
@@ -2740,12 +2760,12 @@ function saveTrade(){
         slModePreTrade:"auto",tpModePreTrade:"auto",
         motivoSLPreTrade:"",notaSLPreTrade:"",motivoTPPreTrade:"",notaTPPreTrade:"",
         motivoSL:"",notaSL:"",motivoTP:"",notaTP:"",
-        modalita:forced?"Forzato":"Core",coreAmmesso:!forced,saldo:balance,rischio:pairRisk,rr:GBP_CORE_RULES.rr,slType:"large",gruppoId:grupo,pipVal:pv,
+        modalita,coreAmmesso:modalita==="Core",saldo:balance,rischio:pairRisk,rr:GBP_CORE_RULES.rr,slType:"large",gruppoId:grupo,pipVal:pv,
         news:newsValue==="yes",nota:noteEl?noteEl.value.trim():"",
         stM5,stM15,stH1,stH4,stM5Rel:stRelation(stM5,dir),stM15Rel:stRelation(stM15,dir),stH1Rel:stRelation(stH1,dir),stH4Rel:stRelation(stH4,dir),
         rangeLargoHigh:d.asia?d.asia.high:"",rangeLargoLow:d.asia?d.asia.low:"",
-        rangeFraHigh:d.high,rangeFraLow:d.low,rangeUsato:"Frankfurt",caso:forced?("FORZATO · "+plainText(gbpCoreReason(d,dir))):(dir==="sell"?"SELL Core · FRA interno Asia":"BUY Core · FRA <=12 pip"),
-        flagRangeStretto:false,sogliaFra:GBP_CORE_RULES.maxRange,flagRangeOperativoStretto:forced,deviazioneCore:forced,
+        rangeFraHigh:d.high,rangeFraLow:d.low,rangeUsato:"Frankfurt",caso:saveAsDemo?("DEMO · "+plainText(gbpCoreReason(d,dir))):(forced?("FORZATO · "+plainText(gbpCoreReason(d,dir))):(dir==="sell"?"SELL Validato · FRA interno Asia":"BUY Validato · FRA <=12 pip")),
+        flagRangeStretto:false,sogliaFra:GBP_CORE_RULES.maxRange,flagRangeOperativoStretto:modalita!=="Core",deviazioneCore:modalita!=="Core",
         eurGbp0900:null,eurGbpVarPct,eurCoreVersion:null,eurCoreSetupValido:null,
         sellShared:null,sharedAsia:null,sharedFra:null,distAsiaLow:null,distFraLow:null,
         gestione:"GBP 50/50 Core+Runner",sizeTotalePianificata:effectivePlan.totalSize,slCoreTeorico:sl,tpCoreTeorico:tp,
@@ -2805,11 +2825,13 @@ function saveTrade(){
     const stM5=getST(pairKey,"m5"),stM15=getST(pairKey,"m15"),stH1=getST(pairKey,"h1"),stH4=getST(pairKey,"h4");
     const rl=getRange(pairKey,"lrg"),rf=getRange(pairKey,"fra"),kk=pairKey==="eur"?null:casoRange(pairKey);
     const eurStatus=pairKey==="eur"?eurCoreStatus():null;
-    const modalita=pairKey==="eur"?((dir==="buy"?eurStatus.buyAllowed:eurStatus.sellAllowed)?"Core":"Forzato"):"Forzato";
+    const naturalMode=pairKey==="eur"?((dir==="buy"?eurStatus.buyAllowed:eurStatus.sellAllowed)?"Core":"Forzato"):"Forzato";
+    const modalita=saveMode==="Demo"?"Demo":(saveMode==="Forzato"?"Forzato":naturalMode);
     const rangeUsato=pairKey==="eur"?"London":rangeInUso(pairKey);
     const rangeLargoHigh=rl?rl.high:"",rangeLargoLow=rl?rl.low:"";
     const rangeFraHigh=rf?rf.high:"",rangeFraLow=rf?rf.low:"";
-    const caso=pairKey==="eur"?(dir==="sell"?(eurStatus.sellShared?"SELL shared: "+sharedSources(eurStatus):"SELL non-shared"):(eurStatus.rangeOk?"BUY Core":"BUY fuori range Core")):(kk?kk.caso:"");
+    const casoBase=pairKey==="eur"?(dir==="sell"?(eurStatus.sellShared?"SELL shared: "+sharedSources(eurStatus):"SELL non-shared"):(eurStatus.rangeOk?"BUY Validato":"BUY fuori range Validato")):(kk?kk.caso:"");
+    const caso=modalita==="Demo"?"DEMO · "+casoBase:(modalita==="Forzato"&&naturalMode!=="Core"?"FORZATO · "+casoBase:casoBase);
     const fraPips=rf?rf.pips:null;
     const sogliaFra=pairKey==="eur"?null:10;
     const flagRangeStretto=pairKey==="eur"?false:(fraPips!=null&&fraPips<sogliaFra);
@@ -3176,7 +3198,7 @@ function completeTrade(i){
 
 function setStatsMode(mode){
   statsMode=mode;
-  ["Core","Forzato","Combined"].forEach(m=>{
+  ["Core","Forzato","Demo","Combined"].forEach(m=>{
     const id=m==="Combined"?"stats-tab-combined":"stats-tab-"+m.toLowerCase();
     const el=document.getElementById(id);if(el)el.classList.toggle("active",m===mode);
   });
